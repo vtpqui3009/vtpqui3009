@@ -1,7 +1,7 @@
 <h1 align="center">Hi 👋, I'm Van Tran Phu Qui</h1>
 <h3 align="center">A passionate frontend developer from Vietnam</h3>
 
-- 🌱 I’m currently learning **Angular, Nestjs**
+- 🌱 I’m currently learning **Angular**
 
 - 👨‍💻 All of my projects are available at [https://vtpqui-cv.live/](https://vtpqui-cv.live/)
 
