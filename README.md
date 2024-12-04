@@ -1,11 +1,11 @@
 <h1 align="center">Hi 👋, I'm Van Tran Phu Qui</h1>
 <h3 align="center">A passionate frontend developer from Vietnam</h3>
 
-- 🌱 I’m currently learning and working with **Angular**
+- 🌱 I’m currently learning and working with **Angular** and **ReactJS**
 
-- 👨‍💻 All of my projects are available at [https://vtpqui-cv.live/](https://vtpqui-cv.live/)
-
-- 📫 How to reach me **vtpqui@gmail.com**
+- 📫 How to reach me:
+  + Email: **vtpqui@gmail.com**
+  + Phone: **0356547882**
 
 
 <h3 align="left">Languages and Tools:</h3>
