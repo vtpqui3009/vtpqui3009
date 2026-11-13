@@ -1,0 +1,415 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0"><title>Mini Novu Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: một "bảng điều khiển" gồm điều khiển trên cùng, bảng job 5 cột (queue → worker → kết quả), rồi nhật ký và thí nghiệm. */
+  :root {
+    --bg:#f2f4f8; --surface:#ffffff; --surface2:#eaeef5; --ink:#152033; --muted:#5a6880; --line:#d3dae7;
+    --info:#2b66d9; --ok:#0b8f63; --warn:#b36b00; --bad:#cc3a39; --accent:#6247d1;
+    --font-head:'Space Grotesk',system-ui,sans-serif; --font-body:'Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0c111a; --surface:#141b27; --surface2:#1b2434; --ink:#e3e8f1; --muted:#93a0b7; --line:#28324a;
+    --info:#6ea8ff; --ok:#3ddc97; --warn:#ffb454; --bad:#ff7b7b; --accent:#b79cff; color-scheme:dark; } }
+  :root[data-theme="dark"] {
+    --bg:#0c111a; --surface:#141b27; --surface2:#1b2434; --ink:#e3e8f1; --muted:#93a0b7; --line:#28324a;
+    --info:#6ea8ff; --ok:#3ddc97; --warn:#ffb454; --bad:#ff7b7b; --accent:#b79cff; color-scheme:dark; }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:14px; line-height:1.5;
+         padding-block:16px 40px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  h1 { font:700 24px/1.2 var(--font-head); margin:0; text-wrap:balance; }
+  h2 { font:600 12px/1.2 var(--font-body); letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; }
+  p { margin:0; } .lead { color:var(--muted); max-width:70ch; margin-top:4px; }
+  section, .panel { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  button { font:500 13px var(--font-body); color:var(--ink); background:var(--surface2); border:1px solid var(--line); border-radius:7px; padding:7px 11px; cursor:pointer; }
+  button:hover { border-color:var(--info); } button:focus-visible, input:focus-visible { outline:2px solid var(--info); outline-offset:2px; }
+  button.on { background:var(--info); border-color:var(--info); color:#fff; }
+  button.danger:hover { border-color:var(--bad); color:var(--bad); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .grid2 { display:grid; grid-template-columns:1fr; gap:14px; } @media (min-width:900px){ .grid2 { grid-template-columns:1.1fr 1fr; } }
+  .scen { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; }
+  .scen button { text-align:left; display:flex; flex-direction:column; gap:1px; } .scen b { font-weight:600; } .scen span { color:var(--muted); font-size:12px; }
+  .sliders { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px 18px; }
+  .sl label { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); } .sl output { color:var(--ink); font-family:var(--font-mono); }
+  input[type=range] { width:100%; accent-color:var(--info); }
+  .caption { border-left:3px solid var(--accent); background:var(--surface2); padding:9px 12px; border-radius:0 8px 8px 0; min-height:44px; }
+  /* Bảng job */
+  .boardscroll { overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+  .board { position:relative; min-width:860px; display:grid; grid-template-columns:1fr 1fr 1.55fr 1fr 1fr; gap:8px; padding:8px; }
+  .col { background:var(--surface); border:1px solid var(--line); border-radius:8px; min-height:290px; padding:8px; }
+  .col h3 { font:600 12px var(--font-body); margin:0 0 2px; } .col small { color:var(--muted); font-size:11px; display:block; line-height:1.3; }
+  .col.workers { display:flex; flex-direction:column; gap:8px; padding:8px; } .col.workers > .head { padding:0 2px; }
+  .lane { border:1px solid var(--line); border-radius:8px; background:var(--surface2); height:104px; padding:6px 8px; position:relative; }
+  .lane.dead { border-color:var(--bad); } .lane.paused, .lane.draining { border-color:var(--warn); }
+  .lane .lh { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .lane .nm { font:600 12px var(--font-body); } .lane .st { font-size:11px; color:var(--muted); }
+  .lane .mini { display:flex; gap:4px; margin-top:3px; } .lane .mini button { padding:2px 7px; font-size:11px; }
+  .chip { position:absolute; left:0; top:0; width:62px; height:34px; border-radius:7px; border:1.5px solid var(--info); background:color-mix(in srgb, var(--info) 14%, var(--surface));
+          color:var(--ink); font:600 11px/1.15 var(--font-mono); padding:3px 5px; cursor:pointer; transition:transform .45s cubic-bezier(.3,.8,.3,1), opacity .3s, border-color .2s; overflow:hidden; user-select:none; }
+  .chip .sub { display:block; font-weight:400; color:var(--muted); font-size:10px; }
+  .chip.s-delayed { border-color:var(--warn); background:color-mix(in srgb, var(--warn) 16%, var(--surface)); }
+  .chip.s-active { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+  .chip.s-done { border-color:var(--ok); background:color-mix(in srgb, var(--ok) 16%, var(--surface)); }
+  .chip.s-dead { border-color:var(--bad); background:color-mix(in srgb, var(--bad) 16%, var(--surface)); }
+  .chip.ghost { border-style:dashed; opacity:.75; background:transparent; }
+  .chip.sel { box-shadow:0 0 0 2px var(--ink); }
+  .chip .bar { position:absolute; left:0; bottom:0; height:3px; background:var(--accent); }
+  .gate { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; }
+  .meter { width:150px; height:10px; background:var(--surface2); border:1px solid var(--line); border-radius:99px; overflow:hidden; } .meter i { display:block; height:100%; background:var(--info); transition:width .2s; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; border:1px solid currentColor; font-weight:600; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); } .info { color:var(--info); } .acc { color:var(--accent); }
+  #gatelog { display:flex; flex-wrap:wrap; gap:6px; min-height:24px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+  .stat { background:var(--surface2); border-radius:8px; padding:8px 10px; } .stat b { display:block; font:600 20px var(--font-mono); font-variant-numeric:tabular-nums; } .stat span { font-size:11px; color:var(--muted); }
+  #log { max-height:300px; overflow:auto; font:12px/1.55 var(--font-mono); } .ev { padding:2px 0; border-bottom:1px dashed var(--line); } .ev time { color:var(--muted); margin-right:8px; }
+  #browser .msg { padding:4px 0; border-bottom:1px dashed var(--line); }
+  .exp { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; } .exp button { text-align:left; } .exp b { display:block; } .exp span { color:var(--muted); font-size:12px; }
+  details { border-top:1px solid var(--line); padding-top:8px; margin-top:8px; } summary { cursor:pointer; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13px; } th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; font-size:12px; }
+  code { font-family:var(--font-mono); font-size:12px; background:var(--surface2); padding:1px 5px; border-radius:4px; }
+  @media (prefers-reduced-motion: reduce) { .chip { transition:none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Mini Novu Simulator</h1>
+    <p class="lead">Một hệ thống gửi thông báo thu nhỏ chạy ngay trong trang này: API nhận request, đẩy job vào queue, worker xử lý, kết quả đẩy về trình duyệt. Bấm kịch bản, giết worker, chỉnh thông số, tua chậm để thấy từng bước.</p>
+  </header>
+
+  <section>
+    <h2>1. Gửi request vào API</h2>
+    <div class="scen" id="scen"></div>
+    <div class="row" style="margin-top:10px" id="rejects"></div>
+    <div class="caption" id="caption" style="margin-top:10px">Chọn một kịch bản. Mỗi job là một ô nhỏ, nó sẽ đi từ trái sang phải. Bấm vào ô để xem lịch sử của riêng nó.</div>
+  </section>
+
+  <section>
+    <h2>2. Bảng job (bấm vào ô để xem chi tiết)</h2>
+    <div class="gate">
+      <b>Cửa API</b>
+      <span>Rate limit: <span class="meter" role="img" aria-label="Số token rate limit còn lại"><i id="tokfill"></i></span> <code id="toktxt"></code></span>
+      <div id="gatelog" aria-live="polite"></div>
+    </div>
+    <div class="row" style="margin:10px 0">
+      <button id="play" class="on">⏸ Tạm dừng</button>
+      <button id="stepbtn" title="Chỉ dùng khi đang tạm dừng">Bước 0,5s</button>
+      <span style="color:var(--muted);font-size:12px;margin-left:4px">Tốc độ</span>
+      <span id="speeds" class="row" style="gap:4px"></span>
+      <span style="flex:1"></span>
+      <span class="pill info">Đồng hồ ảo: <span id="clock" style="font-family:var(--font-mono)">0,0s</span></span>
+      <button id="reset" class="danger">Làm lại từ đầu</button>
+    </div>
+    <div class="boardscroll"><div class="board" id="board">
+      <div class="col" id="col-waiting"><h3>Đang chờ <span class="pill info" id="n-waiting">0</span></h3><small>Queue: sẵn sàng cho worker lấy</small></div>
+      <div class="col" id="col-delayed"><h3>Chờ thử lại <span class="pill warn" id="n-delayed">0</span></h3><small>Backoff: số giây còn lại ở dưới ô</small></div>
+      <div class="col workers" id="col-workers"><div class="head"><h3>Worker đang chạy</h3><small>Thanh tím dưới ô = thời gian còn lại trước khi queue coi worker đã chết</small></div></div>
+      <div class="col" id="col-done"><h3>Đã gửi xong <span class="pill ok" id="n-done">0</span></h3><small>Worker ack, job bị xóa khỏi queue</small></div>
+      <div class="col" id="col-dead"><h3>DLQ (hỏng) <span class="pill bad" id="n-dead">0</span></h3><small>Hết lượt hoặc lỗi không thể thử lại</small></div>
+    </div></div>
+    <div class="panel" id="detail" style="margin-top:10px;background:var(--surface2)"><b>Chi tiết job:</b> <span style="color:var(--muted)">chưa chọn ô nào.</span></div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>3. Thông số hệ thống (kéo thử)</h2>
+      <div class="sliders" id="sliders"></div>
+    </section>
+    <section>
+      <h2>Thống kê</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section><h2>Nhật ký sự kiện (mới nhất ở trên)</h2><div id="log"></div></section>
+    <section id="browser"><h2>Trình duyệt của alice (nhận realtime qua WS)</h2><div id="msgs"><span style="color:var(--muted)">Chưa có tin nào.</span></div></section>
+  </div>
+
+  <section>
+    <h2>4. Thí nghiệm có hướng dẫn</h2>
+    <div class="exp" id="exp"></div>
+  </section>
+
+  <section>
+    <h2>Từ khóa và nơi xem code</h2>
+    <table>
+      <tr><th>Khái niệm</th><th>Ý nghĩa</th><th>Trong repo</th></tr>
+      <tr><td>202 Accepted</td><td>API chỉ nhận và đẩy job, trả lời ngay. Việc nặng làm sau.</td><td><code>api/main.ts</code></td></tr>
+      <tr><td>Ack / Fail</td><td>Worker báo xong (xóa job) hoặc lỗi (thử lại hoặc vào DLQ). Chỉ ack sau khi làm xong.</td><td><code>worker/main.ts</code></td></tr>
+      <tr><td>Backoff mũ</td><td>Lần thử n chờ <code>cơ sở × 2^(n-1)</code> để không dồn tải vào nơi đang lỗi.</td><td><code>infra/main.ts</code> failJob</td></tr>
+      <tr><td>DLQ</td><td>Nơi giữ job hỏng để người vận hành xem, không mất dấu.</td><td><code>infra/main.ts</code></td></tr>
+      <tr><td>Visibility timeout</td><td>Job được giao mà không có phản hồi trong thời hạn thì coi như worker chết và giao lại.</td><td>reaper trong <code>infra/main.ts</code></td></tr>
+      <tr><td>At-least-once</td><td>Một job có thể chạy hơn một lần, nên bước gửi phải idempotent (đánh dấu "đã gửi").</td><td><code>run-job.usecase.ts</code></td></tr>
+      <tr><td>Idempotency-Key / transactionId</td><td>Hai lớp chống trùng: ở tầng HTTP và ở tầng nghiệp vụ.</td><td><code>api/middlewares.ts</code>, <code>trigger-event.usecase.ts</code></td></tr>
+    </table>
+    <p style="color:var(--muted);font-size:12px;margin-top:8px">Đây là mô phỏng theo cơ chế trong code Novu đã đọc, không phải Novu thật. Thời gian là đồng hồ ảo nên tua nhanh hoặc chậm được.</p>
+  </section>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const DEFAULTS = { workers:2, conc:2, attempts:3, backoff:0.8, vis:4, cap:8, refill:1 };
+const SLIDERS = [
+  ['workers','Số worker',1,3,1,''],['conc','Job đồng thời / worker',1,3,1,''],['attempts','Số lần thử tối đa',1,6,1,''],
+  ['backoff','Backoff cơ sở',0.3,3,0.1,'s'],['vis','Visibility timeout',1,8,0.5,'s'],['cap','Rate limit: dung lượng',3,20,1,''],['refill','Rate limit: nạp lại / giây',0.5,5,0.5,''],
+];
+const PROC_MS = 900, SLOW_MS = 2800, WS_MS = 350;
+const SCEN = {
+  ok:{ t:'Bình thường', d:'gửi thành công ngay', cap:'API trả 202 ngay. Ô đi: Đang chờ → Worker → Đã gửi xong. Sau đó trình duyệt của alice nhận tin realtime.' },
+  flaky:{ t:'Lỗi tạm thời', d:'lỗi 2 lần, lần 3 thành công', cap:'Provider lỗi 503 hai lần. Mỗi lần ô sang cột "Chờ thử lại" với thời gian chờ gấp đôi (backoff mũ), lần 3 thì thành công.' },
+  fatal:{ t:'Lỗi không thể thử lại', d:'vào DLQ ngay', cap:'Số điện thoại sai thì thử lại cũng vô ích. Job đi thẳng vào DLQ ở lần 1, không lãng phí lượt thử.' },
+  always:{ t:'Lỗi mãi mãi', d:'hết lượt thì vào DLQ', cap:'Provider luôn lỗi. Job được thử đủ số lần tối đa với thời gian chờ tăng dần, rồi vào DLQ để người vận hành xem.' },
+  crash:{ t:'Worker chết giữa chừng', d:'giết worker khi đang xử lý', cap:'Worker chết trước khi ack. Job nằm im ở lane worker đó cho đến khi hết visibility timeout, rồi queue giao lại cho worker khác. Job không bị mất.' },
+  slow:{ t:'Job chạy chậm', d:'lần đầu mất 2,8s', cap:'Lần chạy đầu mất 2,8s (như cold start). Nếu visibility timeout ngắn hơn 2,8s, queue sẽ giao job cho worker khác khi worker cũ vẫn đang làm (ô nét đứt). Thử kéo Visibility timeout xuống 1,5s.' },
+};
+let S;
+function fresh() {
+  S = { now:0, speed:1, paused:false, nextId:1, jobs:[], workers:[], set:{...DEFAULTS}, stats:{}, tokens:DEFAULTS.cap, idem:new Set(), tx:new Set(), sent:new Set(),
+        wsq:[], logs:[], gate:[], msgs:[], selected:null, ver:0 };
+  for (const k of ['accepted','rejected','replays','ignored','sent','dupSkipped','retries','dead','timeouts','staleAck']) S.stats[k]=0;
+  syncWorkers(); S.ver++;
+}
+function syncWorkers() {
+  while (S.workers.length < S.set.workers) S.workers.push({ id:S.workers.length, state:'up', procs:[], respawnAt:0 });
+  while (S.workers.length > S.set.workers) S.workers.pop();
+}
+const fmt = (ms) => (ms/1000).toFixed(1).replace('.',',')+'s';
+function log(msg, cls='', jobId=null) { S.logs.unshift({ t:S.now, msg, cls, jobId }); if (S.logs.length>120) S.logs.pop(); S.ver++; }
+function jlog(job, msg, cls='') { job.log.unshift({ t:S.now, msg, cls }); log(`#${job.id} ${msg}`, cls, job.id); }
+function gate(text, cls) { S.gate.unshift({text, cls}); if (S.gate.length>5) S.gate.pop(); S.ver++; }
+
+// ---------- API: auth -> rate limit -> idempotency -> validate -> use case ----------
+function sendRequest(o) {
+  if (!o.keyOk) { S.stats.rejected++; gate('401 sai API key','bad'); log('API từ chối 401: sai hoặc thiếu API key','bad'); return null; }
+  if (S.tokens < 1) { S.stats.rejected++; gate('429 vượt rate limit','bad'); log('API từ chối 429: hết token rate limit (cửa vẫn bảo vệ hệ thống phía sau)','bad'); return null; }
+  S.tokens -= 1;
+  if (o.idem && S.idem.has(o.idem)) { S.stats.replays++; gate('Idempotency-Key trùng: trả kết quả cũ','warn'); log(`Idempotency-Key "${o.idem}" đã dùng: trả lại kết quả cũ, KHÔNG tạo job mới`,'warn'); return null; }
+  if (o.idem) S.idem.add(o.idem);
+  if (!o.bodyOk) { S.stats.rejected++; gate('422 body sai','bad'); log('API từ chối 422: dữ liệu không hợp lệ','bad'); return null; }
+  if (o.tx && S.tx.has(o.tx)) { S.stats.ignored++; gate('transactionId trùng: bỏ qua','warn'); log(`transactionId "${o.tx}" đã dùng: bỏ qua (acknowledged nhưng ignored)`,'warn'); return null; }
+  if (o.tx) S.tx.add(o.tx);
+  const job = { id:S.nextId++, scenario:o.scenario, status:'waiting', attemptsMade:0, availableAt:S.now, visibleUntil:0, holder:null, receipt:0, lastError:'', log:[], doneAt:0, nid:'n'+S.nextId };
+  S.jobs.push(job); S.stats.accepted++; gate('202 đã nhận, đã đẩy job','ok');
+  jlog(job, `API trả 202 và đẩy vào queue (${SCEN[o.scenario].t})`, 'info');
+  return job;
+}
+
+// ---------- Queue ----------
+function failJob(job, err, retryable) {
+  job.lastError = err; job.receipt++; job.holder = null;
+  if (!retryable || job.attemptsMade >= S.set.attempts) {
+    job.status='dead'; S.stats.dead++;
+    jlog(job, `vào DLQ (${retryable ? 'hết '+S.set.attempts+' lượt thử' : 'lỗi không thể thử lại'}): ${err}`, 'bad');
+  } else {
+    const delay = S.set.backoff*1000 * 2 ** (job.attemptsMade-1);
+    job.status='waiting'; job.availableAt=S.now+delay; S.stats.retries++;
+    jlog(job, `lỗi lần ${job.attemptsMade}: ${err}. Hẹn thử lại sau ${fmt(delay)} (${fmt(S.set.backoff*1000)} × 2^${job.attemptsMade-1})`, 'warn');
+  }
+}
+
+// ---------- Worker ----------
+function killWorker(w, why) {
+  if (w.state==='dead') return;
+  w.state='dead'; w.procs=[]; w.respawnAt = $('#auto')?.checked ? S.now+1500 : Infinity;
+  log(`Worker ${w.id+1} CHẾT (${why}). Job đang giữ bị bỏ lại, chưa ack, chưa fail`,'bad');
+}
+function finish(w, p) {
+  const job = p.job;
+  const attempt = p.attempt;
+  const sc = job.scenario;
+  let err=null, retry=true;
+  if (sc==='flaky' && attempt<3) err='provider trả 503 (tạm thời)';
+  if (sc==='always') err='provider luôn lỗi';
+  if (sc==='fatal') { err='số điện thoại không hợp lệ'; retry=false; }
+  const stale = job.status!=='active' || job.receipt!==p.receipt;
+  if (err) {
+    if (stale) { S.stats.staleAck++; log(`Worker ${w.id+1} báo lỗi #${job.id} nhưng job đã được giao nơi khác: bị bỏ qua (409)`,'warn'); }
+    else failJob(job, err, retry);
+    return;
+  }
+  // gửi thật, có đánh dấu idempotent
+  if (!S.sent.has(job.nid)) { S.sent.add(job.nid); S.stats.sent++; jlog(job, `worker ${w.id+1} gửi qua provider (lần gửi thật đầu tiên)`, 'ok'); }
+  else { S.stats.dupSkipped++; jlog(job, `worker ${w.id+1} bỏ qua việc gửi vì đã gửi trước đó (idempotent)`, 'warn'); }
+  if (stale) { S.stats.staleAck++; jlog(job, `ack của worker ${w.id+1} bị TỪ CHỐI (409): job đã được giao lại`, 'warn'); return; }
+  job.status='done'; job.doneAt=S.now; job.holder=null; job.receipt++;
+  jlog(job, `worker ${w.id+1} ack: job xong, xóa khỏi queue`, 'ok');
+  S.wsq.push({ at:S.now+WS_MS, job });
+}
+
+function tick(dt) {
+  S.now += dt;
+  S.tokens = Math.min(S.set.cap, S.tokens + dt/1000*S.set.refill);
+  // reaper: visibility timeout
+  for (const j of S.jobs) if (j.status==='active' && S.now >= j.visibleUntil) {
+    S.stats.timeouts++; jlog(j, 'hết visibility timeout: queue coi như worker không phản hồi, giao lại', 'warn');
+    failJob(j, 'visibility timeout', true);
+  }
+  for (const w of S.workers) {
+    if (w.state==='dead' && S.now>=w.respawnAt) { w.state='up'; w.procs=[]; log(`Worker ${w.id+1} được khởi động lại (như Kubernetes làm)`,'ok'); }
+    if (w.state==='dead') continue;
+    for (const p of [...w.procs]) {
+      const j = p.job;
+      if (j.scenario==='crash' && p.attempt===1 && S.now >= p.startedAt + PROC_MS/2) { killWorker(w, 'bị kill giữa chừng'); break; }
+      if (S.now >= p.finishAt) { w.procs.splice(w.procs.indexOf(p),1); finish(w,p); }
+    }
+    if (w.state==='draining' && w.procs.length===0) { w.state='dead'; w.respawnAt = $('#auto')?.checked ? S.now+1500 : Infinity; log(`Worker ${w.id+1} đã tắt êm sau khi làm xong việc đang chạy`,'ok'); }
+    if (w.state==='up') {
+      while (w.procs.length < S.set.conc) {
+        const j = S.jobs.find((x)=>x.status==='waiting' && x.availableAt<=S.now);
+        if (!j) break;
+        j.status='active'; j.attemptsMade++; j.receipt++; j.holder=w.id; j.visibleUntil=S.now+S.set.vis*1000;
+        const dur = j.scenario==='slow' && j.attemptsMade===1 ? SLOW_MS : PROC_MS; // chậm ở lần đầu (giống cold start)
+        w.procs.push({ job:j, attempt:j.attemptsMade, receipt:j.receipt, startedAt:S.now, finishAt:S.now+dur });
+        jlog(j, `worker ${w.id+1} lấy job (lần ${j.attemptsMade}/${S.set.attempts})`, 'info');
+      }
+    }
+  }
+  for (const m of [...S.wsq]) if (S.now>=m.at) {
+    S.wsq.splice(S.wsq.indexOf(m),1);
+    S.msgs.unshift({ t:S.now, text:`Thông báo #${m.job.id} (${SCEN[m.job.scenario].t})` }); if (S.msgs.length>8) S.msgs.pop();
+    log(`WS đẩy realtime #${m.job.id} tới trình duyệt của alice`,'ok');
+  }
+  // dọn ô đã xong cũ (giống removeOnComplete)
+  const done = S.jobs.filter((j)=>j.status==='done'); if (done.length>14) S.jobs.splice(S.jobs.indexOf(done[0]),1);
+  S.ver++;
+}
+
+// ---------- UI dựng một lần ----------
+const speeds = [0.25,0.5,1,2,4];
+speeds.forEach((s)=>{ const b=document.createElement('button'); b.textContent=s+'×'; b.dataset.s=s; b.onclick=()=>{S.speed=s; paintControls();}; $('#speeds').appendChild(b); });
+$('#play').onclick=()=>{ S.paused=!S.paused; paintControls(); };
+$('#stepbtn').onclick=()=>{ if (S.paused) tick(500); };
+$('#reset').onclick=()=>{ fresh(); buildSliders(); buildLanes(); paintControls(); setCaption('Đã làm lại từ đầu.'); };
+function paintControls() {
+  const p=$('#play'); p.textContent=S.paused?'▶ Chạy tiếp':'⏸ Tạm dừng'; p.classList.toggle('on',!S.paused);
+  $('#speeds').querySelectorAll('button').forEach((b)=>b.classList.toggle('on', +b.dataset.s===S.speed));
+  $('#stepbtn').disabled=!S.paused;
+}
+function setCaption(t) { $('#caption').textContent=t; }
+const uid = () => Math.random().toString(36).slice(2,6);
+
+function buildScen() {
+  const box=$('#scen');
+  for (const [k,v] of Object.entries(SCEN)) { const b=document.createElement('button'); b.innerHTML=`<b>${v.t}</b><span>${v.d}</span>`; b.onclick=()=>{ sendRequest({scenario:k,keyOk:true,bodyOk:true}); setCaption(v.cap); }; box.appendChild(b); }
+  const rj=$('#rejects');
+  const mk=(label,fn,cap)=>{ const b=document.createElement('button'); b.textContent=label; b.onclick=()=>{ fn(); setCaption(cap); }; rj.appendChild(b); };
+  const lab=document.createElement('span'); lab.style.cssText='color:var(--muted);font-size:12px'; lab.textContent='Thử cửa API:'; rj.appendChild(lab);
+  mk('Gửi 2 lần cùng Idempotency-Key',()=>{ const k='k-'+uid(); sendRequest({scenario:'ok',keyOk:true,bodyOk:true,idem:k}); sendRequest({scenario:'ok',keyOk:true,bodyOk:true,idem:k}); },'Lần 2 không tạo job mới: API trả lại kết quả của lần 1. Đây là lớp chống trùng ở tầng HTTP.');
+  mk('Gửi 2 lần cùng transactionId',()=>{ const t='tx-'+uid(); sendRequest({scenario:'ok',keyOk:true,bodyOk:true,tx:t}); sendRequest({scenario:'ok',keyOk:true,bodyOk:true,tx:t}); },'Lần 2 bị bỏ qua. Khác Idempotency-Key ở chỗ transactionId do ứng dụng đặt và mang ý nghĩa nghiệp vụ.');
+  mk('Bắn 15 request liên tiếp',()=>{ for(let i=0;i<15;i++) sendRequest({scenario:'ok',keyOk:true,bodyOk:true}); },'Chỉ vài request đầu qua (đến hết token), phần còn lại nhận 429 ở cửa API. Worker không bị quá tải. Token nạp lại dần theo thời gian.');
+  mk('Sai API key (401)',()=>sendRequest({scenario:'ok',keyOk:false,bodyOk:true}),'Bị chặn ngay ở bước xác thực, trước cả rate limit và validate.');
+  mk('Body sai (422)',()=>sendRequest({scenario:'ok',keyOk:true,bodyOk:false}),'Qua xác thực và rate limit nhưng dữ liệu sai nên bị từ chối. Lưu ý nó vẫn tiêu một token rate limit.');
+}
+function buildSliders() {
+  const box=$('#sliders'); box.innerHTML='';
+  for (const [k,label,min,max,step,unit] of SLIDERS) {
+    const d=document.createElement('div'); d.className='sl';
+    d.innerHTML=`<label for="s-${k}">${label}<output id="o-${k}"></output></label><input id="s-${k}" type="range" min="${min}" max="${max}" step="${step}">`;
+    box.appendChild(d);
+    const inp=d.querySelector('input'), out=d.querySelector('output');
+    const paint=()=>{ out.textContent=String(S.set[k]).replace('.',',')+unit; inp.value=S.set[k]; };
+    inp.oninput=()=>{ S.set[k]=+inp.value; if(k==='workers'){syncWorkers();buildLanes();} paint(); };
+    paint();
+  }
+  const d=document.createElement('div'); d.className='sl'; d.innerHTML='<label for="auto" style="justify-content:flex-start;gap:8px"><input type="checkbox" id="auto" checked> Tự khởi động lại worker chết</label>'; box.appendChild(d);
+}
+function setSetting(k,v){ S.set[k]=v; if(k==='workers'){syncWorkers();} buildSliders(); buildLanes(); }
+
+function buildLanes() {
+  const col=$('#col-workers'); col.querySelectorAll('.lane').forEach((e)=>e.remove());
+  S.workers.forEach((w)=>{
+    const l=document.createElement('div'); l.className='lane'; l.id='lane-'+w.id;
+    l.innerHTML=`<div class="lh"><span class="nm">Worker ${w.id+1}</span><span class="st" id="st-${w.id}"></span></div>
+      <div class="mini"><button class="danger" data-a="kill">Giết</button><button data-a="pause">Tạm dừng</button><button data-a="drain">Tắt êm</button></div>`;
+    l.querySelector('[data-a=kill]').onclick=()=>{ killWorker(w,'bị giết thủ công'); setCaption('Worker bị kill đột ngột: job đang giữ chưa được ack. Hãy chờ visibility timeout để thấy queue giao lại.'); };
+    l.querySelector('[data-a=pause]').onclick=()=>{ if(w.state==='up'){w.state='paused';} else if(w.state==='paused'){w.state='up';} };
+    l.querySelector('[data-a=drain]').onclick=()=>{ if(w.state==='up'||w.state==='paused'){ w.state='draining'; log(`Worker ${w.id+1} tắt êm: ngừng nhận job mới, làm nốt job đang chạy`,'warn'); setCaption('Tắt êm (graceful shutdown): worker không lấy job mới nhưng làm xong việc đang chạy rồi mới thoát. Cách deploy không làm mất việc.'); } };
+    col.appendChild(l);
+  });
+}
+
+// ---------- Vẽ ----------
+const chipEls = new Map();
+const STATE_TXT = { up:'đang chạy', paused:'tạm dừng', draining:'đang tắt êm', dead:'ĐÃ CHẾT' };
+function place(list, colEl, boardRect, topOffset, chipW=62, chipH=34, gap=6) {
+  const r=colEl.getBoundingClientRect(); const x0=r.left-boardRect.left+8, y0=r.top-boardRect.top+topOffset;
+  const per=Math.max(1,Math.floor((r.width-16+gap)/(chipW+gap)));
+  list.forEach((c,i)=>{ c.x=x0+(i%per)*(chipW+gap); c.y=y0+Math.floor(i/per)*(chipH+gap); });
+}
+function render() {
+  const board=$('#board'), br=board.getBoundingClientRect();
+  const chips=[];
+  const waiting=S.jobs.filter((j)=>j.status==='waiting'&&j.availableAt<=S.now);
+  const delayed=S.jobs.filter((j)=>j.status==='waiting'&&j.availableAt>S.now);
+  const done=S.jobs.filter((j)=>j.status==='done'), dead=S.jobs.filter((j)=>j.status==='dead');
+  const mk=(job,kind,extra={})=>({ key:extra.key||('j'+job.id), job, kind, ...extra });
+  const cw=waiting.map((j)=>mk(j,'waiting')), cd=delayed.map((j)=>mk(j,'delayed')), cdone=done.map((j)=>mk(j,'done')), cdead=dead.map((j)=>mk(j,'dead'));
+  place(cw,$('#col-waiting'),br,52); place(cd,$('#col-delayed'),br,52); place(cdone,$('#col-done'),br,52); place(cdead,$('#col-dead'),br,52);
+  // worker lanes
+  const lanes=S.workers.map(()=>[]);
+  for (const j of S.jobs) if (j.status==='active') { const li=Math.min(j.holder??0, S.workers.length-1); lanes[li].push(mk(j,'active')); }
+  S.workers.forEach((w,i)=>{ for (const p of w.procs) if (p.job.receipt!==p.receipt) lanes[i].push(mk(p.job,'ghost',{key:`g${p.job.id}-${p.receipt}`})); });
+  S.workers.forEach((w,i)=>{
+    const lane=$('#lane-'+i); if(!lane) return;
+    lane.className='lane '+(w.state==='dead'?'dead':w.state==='paused'||w.state==='draining'?'paused':'');
+    $('#st-'+i).innerHTML = w.state==='dead' ? `<span class="bad">ĐÃ CHẾT</span>${isFinite(w.respawnAt)?' · sống lại sau '+fmt(Math.max(0,w.respawnAt-S.now)):''}` : STATE_TXT[w.state]+` · ${w.procs.length}/${S.set.conc}`;
+    const r=lane.getBoundingClientRect(); const x0=r.left-br.left+8, y0=r.top-br.top+54;
+    lanes[i].forEach((c,k)=>{ c.x=x0+k*68; c.y=y0; });
+    chips.push(...lanes[i]);
+  });
+  chips.push(...cw,...cd,...cdone,...cdead);
+  const seen=new Set();
+  for (const c of chips) {
+    seen.add(c.key); let el=chipEls.get(c.key);
+    if (!el) { el=document.createElement('div'); el.className='chip'; el.innerHTML='<span class="t"></span><span class="sub"></span><i class="bar"></i>'; el.onclick=()=>{ S.selected=c.job.id; S.ver++; }; el.style.transform=`translate(${c.x}px,${c.y}px)`; board.appendChild(el); chipEls.set(c.key,el); }
+    const j=c.job;
+    el.className='chip '+(c.kind==='ghost'?'ghost s-active':'s-'+(c.kind==='waiting'?'waiting':c.kind))+(S.selected===j.id?' sel':'');
+    el.style.transform=`translate(${c.x}px,${c.y}px)`;
+    el.querySelector('.t').textContent='#'+j.id+(j.attemptsMade>1?' ×'+j.attemptsMade:'');
+    el.querySelector('.sub').textContent = c.kind==='delayed' ? fmt(Math.max(0,j.availableAt-S.now)) : c.kind==='ghost' ? 'bản cũ' : SCEN[j.scenario].t.slice(0,9);
+    const bar=el.querySelector('.bar'); bar.style.width = c.kind==='active' ? Math.max(0,Math.min(100,(j.visibleUntil-S.now)/(S.set.vis*1000)*100))+'%' : '0';
+    el.title=`#${j.id} · ${SCEN[j.scenario].t}`;
+  }
+  for (const [k,el] of chipEls) if (!seen.has(k)) { el.remove(); chipEls.delete(k); }
+  // chiều cao bảng theo số lane
+  $('#n-waiting').textContent=cw.length; $('#n-delayed').textContent=cd.length; $('#n-done').textContent=S.jobs.filter((j)=>j.status==='done').length; $('#n-dead').textContent=cdead.length;
+  $('#clock').textContent=fmt(S.now);
+  $('#tokfill').style.width=(S.tokens/S.set.cap*100)+'%'; $('#toktxt').textContent=S.tokens.toFixed(1).replace('.',',')+' / '+S.set.cap;
+}
+function renderText() {
+  $('#gatelog').innerHTML=S.gate.map((g)=>`<span class="pill ${g.cls}">${g.text}</span>`).join('');
+  const labels={accepted:'Đã nhận (202)',rejected:'Bị từ chối',replays:'Idempotency trùng',ignored:'transactionId trùng',sent:'Gửi thật',dupSkipped:'Bỏ qua gửi trùng',retries:'Lần thử lại',dead:'Vào DLQ',timeouts:'Giao lại do timeout',staleAck:'Ack/fail bị từ chối'};
+  $('#stats').innerHTML=Object.entries(labels).map(([k,l])=>`<div class="stat"><b>${S.stats[k]}</b><span>${l}</span></div>`).join('');
+  $('#log').innerHTML=S.logs.map((l)=>`<div class="ev"><time>${fmt(l.t)}</time><span class="${l.cls}">${l.msg}</span></div>`).join('') || '<span style="color:var(--muted)">Chưa có sự kiện.</span>';
+  $('#msgs').innerHTML=S.msgs.length?S.msgs.map((m)=>`<div class="msg"><time style="color:var(--muted);margin-right:8px;font-family:var(--font-mono)">${fmt(m.t)}</time><span class="ok">📩 ${m.text}</span></div>`).join(''):'<span style="color:var(--muted)">Chưa có tin nào. Gửi một job "Bình thường" để thấy.</span>';
+  const j=S.jobs.find((x)=>x.id===S.selected);
+  $('#detail').innerHTML = j ? `<b>Job #${j.id}</b> · ${SCEN[j.scenario].t} · trạng thái: <b>${j.status==='waiting'&&j.availableAt>S.now?'chờ thử lại':j.status}</b> · lần thử: ${j.attemptsMade}/${S.set.attempts}${j.lastError?' · lỗi gần nhất: '+j.lastError:''}
+     <div style="margin-top:6px;font:12px/1.55 var(--font-mono);max-height:140px;overflow:auto">${j.log.map((l)=>`<div><time style="color:var(--muted)">${fmt(l.t)}</time> <span class="${l.cls}">${l.msg.replace(/^#\d+ /,'')}</span></div>`).join('')}</div>`
+     : '<b>Chi tiết job:</b> <span style="color:var(--muted)">bấm vào một ô trên bảng để xem lịch sử của nó.</span>';
+}
+
+// ---------- Thí nghiệm ----------
+const EXPS = [
+  ['Xem backoff mũ','đặt 5 lần thử, backoff 1s, gửi "Lỗi mãi mãi"',()=>{ setSetting('attempts',5); setSetting('backoff',1); S.speed=2; paintControls(); sendRequest({scenario:'always',keyOk:true,bodyOk:true}); setCaption('Quan sát số giây chờ dưới ô: 1s, 2s, 4s, 8s rồi vào DLQ. Dùng tốc độ 0,25× hoặc nút Bước để xem từng nấc.'); }],
+  ['Worker chết, job không mất','1 worker, timeout 3s, gửi "Worker chết giữa chừng"',()=>{ setSetting('workers',1); setSetting('vis',3); sendRequest({scenario:'crash',keyOk:true,bodyOk:true}); setCaption('Worker chết, job nằm im ~3s (thanh tím cạn dần), rồi queue giao lại. Worker tự sống lại và làm xong. Bỏ tick "Tự khởi động lại" để thấy job kẹt chờ.'); }],
+  ['Một job bị giao 2 lần','timeout 1,5s, gửi "Job chạy chậm"',()=>{ setSetting('workers',2); setSetting('vis',1.5); sendRequest({scenario:'slow',keyOk:true,bodyOk:true}); setCaption('Lần đầu job chạy 2,8s nhưng timeout chỉ 1,5s nên queue giao cho worker khác (ô nét đứt là bản cũ vẫn chạy). Cuối cùng "Gửi thật" chỉ là 1 nhờ bước gửi idempotent, và ack của bản cũ bị từ chối. Đó là at-least-once.'); }],
+  ['Rate limit bảo vệ hệ thống','dung lượng 5, nạp 1/s, bắn 15 request',()=>{ setSetting('cap',5); setSetting('refill',1); S.tokens=5; for(let i=0;i<15;i++) sendRequest({scenario:'ok',keyOk:true,bodyOk:true}); setCaption('5 request đầu qua, 10 request sau nhận 429 ở cửa API. Chờ vài giây cho thanh token đầy lại rồi bắn tiếp.'); }],
+  ['Tắt êm khi deploy','gửi 4 job rồi tắt êm worker 1',()=>{ setSetting('workers',2); setSetting('conc',2); for(let i=0;i<4;i++) sendRequest({scenario:'slow',keyOk:true,bodyOk:true}); setTimeout(()=>{ const w=S.workers[0]; if(w&&w.state==='up'){ w.state='draining'; log('Worker 1 tắt êm: làm nốt việc đang chạy','warn'); } },600); setCaption('Worker 1 ngừng nhận job mới nhưng làm xong job đang giữ, rồi mới tắt. Worker 2 gánh phần còn lại. Không job nào bị bỏ rơi.'); }],
+];
+function buildExp() { const box=$('#exp'); EXPS.forEach(([t,d,fn])=>{ const b=document.createElement('button'); b.innerHTML=`<b>${t}</b><span>${d}</span>`; b.onclick=()=>{ fresh(); buildSliders(); buildLanes(); fn(); paintControls(); window.scrollTo({top:0,behavior:'smooth'}); }; box.appendChild(b); }); }
+
+// ---------- Khởi động ----------
+fresh(); buildScen(); buildSliders(); buildLanes(); buildExp(); paintControls();
+let last=performance.now(), lastVer=-1;
+setInterval(()=>{ const n=performance.now(); const dt=Math.min(200,n-last); last=n; if(!S.paused) tick(dt*S.speed); },50);
+function frame(){ render(); if (S.ver!==lastVer) { renderText(); lastVer=S.ver; } requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+window.addEventListener('resize', ()=>{ lastVer=-1; });
+// Trạng thái ban đầu có sẵn để trang không trống: gửi vài job mẫu
+sendRequest({scenario:'ok',keyOk:true,bodyOk:true}); sendRequest({scenario:'flaky',keyOk:true,bodyOk:true}); sendRequest({scenario:'fatal',keyOk:true,bodyOk:true});
+</script>
+</body></html>

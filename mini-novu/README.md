@@ -19,6 +19,11 @@ curl -i -X POST localhost:3000/v1/events/trigger \
   -d '{"workflowId":"welcome","to":{"subscriberId":"alice"}}'
 ```
 
+## Xem trực quan
+
+- **`simulator.html`**: mô phỏng chạy hoàn toàn trong trình duyệt, không cần server. Chỉ cần mở file. Bấm kịch bản, giết worker, chỉnh thông số, tua chậm.
+- **Dashboard live** (`npm run dev`, mở http://localhost:3002): xem 4 service thật chạy, sự kiện hiện theo thời gian thực.
+
 ## Kiến trúc
 
 ```
