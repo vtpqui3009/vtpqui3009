@@ -1,0 +1,528 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0"><title>Sổ tay Node.js</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Bố cục: thanh tiến độ trên cùng, mục lục bên trái (chip ngang khi màn hình hẹp), nội dung một mục mỗi lần.
+     Thứ tự mục là thứ tự học: nền tảng -> runtime -> API -> dữ liệu -> test -> queue -> AWS -> vận hành -> phỏng vấn. */
+  :root {
+    --bg:#f2f5f9; --surface:#ffffff; --surface2:#e9eef5; --ink:#131b2b; --muted:#56627a; --line:#d4dbe7;
+    --accent:#0a6f86; --accent-soft:#d9eef3; --ok:#177a3e; --warn:#9a5a00; --bad:#bf312c; --info:#2a5cc4;
+    --code-bg:#eef2f8; --c-kw:#8a3fb8; --c-str:#17703d; --c-com:#76839b; --c-num:#b5560a;
+    --font-head:'Space Grotesk',system-ui,sans-serif; --font-body:'Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0a0f17; --surface:#121a28; --surface2:#1a2438; --ink:#e3e9f3; --muted:#93a1b9; --line:#27324b;
+    --accent:#52c4da; --accent-soft:#12303a; --ok:#4cd38c; --warn:#f3b04c; --bad:#ff7f78; --info:#7da9ff;
+    --code-bg:#0c121d; --c-kw:#c69bff; --c-str:#7fdc9f; --c-com:#6f7e98; --c-num:#f0a35f; color-scheme:dark; } }
+  :root[data-theme="dark"] {
+    --bg:#0a0f17; --surface:#121a28; --surface2:#1a2438; --ink:#e3e9f3; --muted:#93a1b9; --line:#27324b;
+    --accent:#52c4da; --accent-soft:#12303a; --ok:#4cd38c; --warn:#f3b04c; --bad:#ff7f78; --info:#7da9ff;
+    --code-bg:#0c121d; --c-kw:#c69bff; --c-str:#7fdc9f; --c-com:#6f7e98; --c-num:#f0a35f; color-scheme:dark; }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.6;
+         padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:0 48px; }
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); background:var(--bg); z-index:30; }
+  a { color:var(--accent); } h1,h2,h3 { font-family:var(--font-head); text-wrap:balance; margin:0; line-height:1.25; }
+  h2 { font-size:25px; margin-bottom:6px; } h3 { font-size:17px; margin-bottom:6px; } h4 { margin:0 0 4px; font-size:14px; }
+  p { margin:0 0 10px; } ul,ol { margin:0 0 10px; padding-left:20px; } li { margin:2px 0; }
+  code { font-family:var(--font-mono); font-size:.88em; background:var(--code-bg); border:1px solid var(--line); padding:0 5px; border-radius:4px; }
+  .wrap { max-width:1200px; margin:0 auto; }
+  .top { position:sticky; top:env(safe-area-inset-top, 0px); z-index:25; background:var(--bg); padding:10px 0 8px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; }
+  .brand { font:700 18px var(--font-head); } .brand span { font:400 12px var(--font-body); color:var(--muted); margin-left:8px; }
+  .prog { display:flex; align-items:center; gap:8px; margin-left:auto; font-size:12px; color:var(--muted); }
+  .bar { width:150px; height:8px; border-radius:99px; background:var(--surface2); border:1px solid var(--line); overflow:hidden; } .bar i { display:block; height:100%; background:var(--accent); width:0; transition:width .3s; }
+  .shell { display:grid; grid-template-columns:1fr; gap:14px; padding-top:12px; }
+  @media (min-width:960px) { .shell { grid-template-columns:210px minmax(0,1fr); gap:22px; } }
+  #nav { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+  @media (min-width:960px) { #nav { flex-direction:column; position:sticky; top:calc(env(safe-area-inset-top, 0px) + 64px); align-self:start; overflow:visible; } }
+  #nav a { white-space:nowrap; text-decoration:none; color:var(--ink); border:1px solid var(--line); background:var(--surface); padding:6px 11px; border-radius:8px; font-size:13px; display:flex; gap:8px; align-items:baseline; }
+  #nav a i { font:600 11px var(--font-mono); color:var(--muted); font-style:normal; } #nav a.on { background:var(--accent); border-color:var(--accent); color:#fff; } #nav a.on i { color:#e4f7fb; }
+  main { min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .lead { color:var(--muted); max-width:72ch; }
+  .box { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 16px; min-width:0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; } .grid .box { height:100%; }
+  .note { border-left:3px solid var(--accent); background:var(--surface2); padding:9px 12px; border-radius:0 8px 8px 0; margin:10px 0; } .note > b:first-child { display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+  .note.warn { border-color:var(--warn); } .note.bad { border-color:var(--bad); } .note.ok { border-color:var(--ok); } .note.say { border-color:var(--info); }
+  .tw { overflow-x:auto; margin:8px 0; } table { border-collapse:collapse; width:100%; font-size:13.5px; } th,td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; }
+  .codebox { position:relative; margin:8px 0; } .codebox .ct { font:500 11px var(--font-mono); color:var(--muted); padding:0 2px 3px; }
+  pre { margin:0; background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:11px 12px; overflow-x:auto; font:13px/1.55 var(--font-mono); tab-size:2; } pre code { background:none; border:0; padding:0; font-size:inherit; }
+  .k { color:var(--c-kw); } .s { color:var(--c-str); } .c { color:var(--c-com); font-style:italic; } .n { color:var(--c-num); }
+  button { font:500 13px var(--font-body); color:var(--ink); background:var(--surface2); border:1px solid var(--line); border-radius:7px; padding:6px 11px; cursor:pointer; } button:hover { border-color:var(--accent); }
+  button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--info); outline-offset:2px; } button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); } .copy { position:absolute; right:6px; top:20px; padding:2px 8px; font-size:11px; opacity:.85; }
+  .dg { overflow-x:auto; margin:10px 0; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px; } .dg svg { display:block; width:100%; height:auto; min-width:560px; margin:0 auto; }
+  .dg text { fill:var(--ink); font-family:var(--font-body); } .dg .sub { fill:var(--muted); } .dg .lbl { fill:var(--muted); font-size:11px; } .dg .lblbg { fill:var(--surface); }
+  .dg .n-a rect { fill:var(--accent-soft); stroke:var(--accent); } .dg .n-m rect { fill:var(--surface2); stroke:var(--line); } .dg .n-ok rect { fill:color-mix(in srgb, var(--ok) 16%, var(--surface)); stroke:var(--ok); }
+  .dg .n-warn rect { fill:color-mix(in srgb, var(--warn) 16%, var(--surface)); stroke:var(--warn); } .dg .n-bad rect { fill:color-mix(in srgb, var(--bad) 16%, var(--surface)); stroke:var(--bad); } .dg .n-info rect { fill:color-mix(in srgb, var(--info) 14%, var(--surface)); stroke:var(--info); }
+  .dg rect { stroke-width:1.5; } .dg .edge { stroke:var(--muted); stroke-width:1.5; fill:none; } .dg .edge.dash { stroke-dasharray:5 4; }
+  .lab { border:1.5px dashed var(--accent); border-radius:10px; padding:14px 16px; background:var(--surface); } .lab > .lh { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .lab .tag { font:600 11px var(--font-mono); color:var(--accent); letter-spacing:.06em; text-transform:uppercase; } .lab label { font-size:13px; display:flex; gap:6px; align-items:center; cursor:pointer; }
+  .expect { border:1px solid var(--ok); border-radius:8px; padding:8px 12px; margin:8px 0; } .expect b { color:var(--ok); font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  details { border-top:1px solid var(--line); padding-top:6px; margin-top:8px; } summary { cursor:pointer; font-weight:600; font-size:13px; }
+  .pn { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  /* Mô phỏng event loop */
+  .sim { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; } .sim > div { min-width:0; } @media (min-width:860px) { .sim { grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); } }
+  .lane { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; border:1px solid var(--line); border-radius:8px; padding:5px 8px; margin-bottom:6px; min-height:42px; background:var(--surface); transition:border-color .2s, background .2s; }
+  .lane.hot { border-color:var(--accent); background:var(--accent-soft); } .lane .ln { width:150px; font-size:12px; font-weight:600; flex:none; } .lane .ln small { display:block; font-weight:400; color:var(--muted); font-size:11px; }
+  .item { font:11px var(--font-mono); background:var(--surface2); border:1px solid var(--line); border-radius:6px; padding:2px 7px; white-space:nowrap; }
+  .stackbar { border:1px solid var(--accent); border-radius:8px; padding:7px 10px; background:var(--surface); margin-bottom:8px; min-height:52px; } .stackbar b { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; }
+  .console { background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:13px/1.6 var(--font-mono); min-height:56px; }
+  .opt { display:block; width:100%; text-align:left; margin:4px 0; font-family:var(--font-mono); font-size:12px; white-space:normal; overflow-wrap:anywhere; } .opt.right { border-color:var(--ok); background:color-mix(in srgb, var(--ok) 14%, var(--surface)); } .opt.wrong { border-color:var(--bad); background:color-mix(in srgb, var(--bad) 12%, var(--surface)); }
+  /* Flashcard */
+  .fc { border:1px solid var(--line); border-radius:10px; background:var(--surface); padding:12px 14px; } .fc.known { border-color:var(--ok); } .fc .q { font-weight:600; } .fc .a { margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); }
+  .fc .row { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; } .fc label { font-size:13px; display:flex; gap:6px; align-items:center; cursor:pointer; } .gtag { font:600 10px var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Sổ tay Node.js <span>ôn nhanh mức dev ~2 năm · tiếng Việt</span></div>
+    <div class="prog"><span id="ptxt"></span><div class="bar" role="img" aria-label="Tiến độ ôn tập"><i id="pbar"></i></div></div>
+  </header>
+  <div class="shell">
+    <nav id="nav" aria-label="Mục lục"></nav>
+    <main id="main"></main>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============ Tiện ích ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const mem = {};
+const store = {
+  get(k) { try { const v = localStorage.getItem(k); return v === null ? (mem[k] ?? null) : v; } catch { return mem[k] ?? null; } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch {} },
+};
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* Tô màu code rất nhẹ: chú thích, chuỗi, từ khóa, số */
+const KW = new Set('const let var function return if else for while do await async import from export new class extends try catch finally throw typeof of in type interface default break continue switch case null undefined true false this yield satisfies as implements readonly SELECT FROM WHERE INSERT INTO VALUES UPDATE SET DELETE JOIN ON BEGIN COMMIT ROLLBACK CREATE TABLE INDEX EXPLAIN ANALYZE ORDER BY LIMIT AND OR AS ENV RUN COPY WORKDIR USER CMD EXPOSE'.split(' '));
+function hl(src, lang) {
+  const hash = ['bash', 'yaml', 'dockerfile'].includes(lang), dash = lang === 'sql';
+  const com = hash ? '#[^\\n]*' : dash ? '--[^\\n]*' : '\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/';
+  const re = new RegExp('(' + com + ')|("(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\'|`(?:[^`\\\\]|\\\\.)*`)|(\\b[A-Za-z_][A-Za-z0-9_]*\\b)|(\\b\\d[\\d_.]*\\b)', 'g');
+  let out = '', last = 0, m;
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    if (m[1]) out += '<span class="c">' + esc(m[1]) + '</span>';
+    else if (m[2]) out += '<span class="s">' + esc(m[2]) + '</span>';
+    else if (m[3]) out += KW.has(m[3]) ? '<span class="k">' + m[3] + '</span>' : esc(m[3]);
+    else out += '<span class="n">' + m[4] + '</span>';
+    last = re.lastIndex;
+  }
+  return out + esc(src.slice(last));
+}
+const code = (src, lang = 'js', title = '') => '<div class="codebox">' + (title ? '<div class="ct">' + title + '</div>' : '') + '<button class="copy" data-copy>Sao chép</button><pre><code>' + hl(src.trim(), lang) + '</code></pre></div>';
+const note = (kind, html) => '<div class="note ' + kind + '"><b>' + { tip: 'Mẹo', warn: 'Cẩn thận', bad: 'Bẫy hay gặp', ok: 'Nhớ', say: 'Có thể nói' }[kind] + '</b>' + html + '</div>';
+const T = (head, rows) => '<div class="tw"><table><thead><tr>' + head.map((x) => '<th>' + x + '</th>').join('') + '</tr></thead><tbody>' + rows.map((r) => '<tr>' + r.map((c) => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+const cards = (arr) => '<div class="grid">' + arr.map(([t, h]) => '<div class="box"><h3>' + t + '</h3>' + h + '</div>').join('') + '</div>';
+const box = (html) => '<div class="box">' + html + '</div>';
+const head = (t, lead) => '<div><h2>' + t + '</h2><p class="lead">' + lead + '</p></div>';
+
+/* Vẽ sơ đồ SVG từ danh sách ô và mũi tên */
+let dgN = 0;
+function dg({ w, h, nodes, edges = [] }) {
+  const id = 'ah' + (dgN++), N = {};
+  nodes.forEach((n) => (N[n.id] = n));
+  const nodeSvg = (n) => {
+    const lines = n.t.split('\n'), lh = 15, total = lines.length * lh, y0 = n.y + n.h / 2 - total / 2 + 11;
+    return '<g class="n-' + (n.tone || 'm') + '"><rect x="' + n.x + '" y="' + n.y + '" width="' + n.w + '" height="' + n.h + '" rx="8"/>' +
+      lines.map((l, i) => '<text class="' + (i ? 'sub' : '') + '" x="' + (n.x + n.w / 2) + '" y="' + (y0 + i * lh) + '" text-anchor="middle" font-size="' + (i ? 11 : 13) + '" font-weight="' + (i ? 400 : 600) + '">' + esc(l) + '</text>').join('') + '</g>';
+  };
+  const edgeSvg = ([a, b, label, dash]) => {
+    const A = N[a], B = N[b], ax = A.x + A.w / 2, ay = A.y + A.h / 2, bx = B.x + B.w / 2, by = B.y + B.h / 2, dx = bx - ax, dy = by - ay;
+    const k1 = Math.min(A.w / 2 / Math.abs(dx || 1e-9), A.h / 2 / Math.abs(dy || 1e-9)), k2 = Math.min((B.w / 2 + 4) / Math.abs(dx || 1e-9), (B.h / 2 + 4) / Math.abs(dy || 1e-9));
+    const x1 = ax + dx * k1, y1 = ay + dy * k1, x2 = bx - dx * k2, y2 = by - dy * k2;
+    let s = '<line class="edge ' + (dash ? 'dash' : '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" marker-end="url(#' + id + ')"/>';
+    if (label) { const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, lw = label.length * 6 + 8; s += '<rect class="lblbg" x="' + (mx - lw / 2) + '" y="' + (my - 9) + '" width="' + lw + '" height="16" rx="4" stroke="none"/><text class="lbl" x="' + mx + '" y="' + (my + 3) + '" text-anchor="middle">' + esc(label) + '</text>'; }
+    return s;
+  };
+  return '<div class="dg"><svg viewBox="0 0 ' + w + ' ' + h + '" role="img"><defs><marker id="' + id + '" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/></marker></defs>' +
+    edges.map(edgeSvg).join('') + nodes.map(nodeSvg).join('') + '</svg></div>';
+}
+const nd = (id, x, y, w, h, t, tone) => ({ id, x, y, w, h, t, tone });
+
+/* Lab: có hộp tick, lưu tiến độ */
+const LABS = [];
+function lab(id, title, goal, body) {
+  if (!LABS.find((l) => l.id === id)) LABS.push({ id, title });
+  const on = store.get('lab:' + id) === '1';
+  return '<div class="lab"><div class="lh"><div><span class="tag">Lab ' + id.toUpperCase() + '</span><h3 style="margin:0">' + title + '</h3></div><label><input type="checkbox" data-lab="' + id + '"' + (on ? ' checked' : '') + '> Đã làm xong</label></div><p><b>Mục tiêu:</b> ' + goal + '</p>' + body + '</div>';
+}
+const expect = (html) => '<div class="expect"><b>Kết quả mong đợi</b><div>' + html + '</div></div>';
+
+/* ============ Mô phỏng event loop ============ */
+const PRESETS = [
+  { id: 'basic', t: 'Thứ tự cơ bản', code: "console.log('A');\nsetTimeout(() => console.log('timeout'), 0);\nsetImmediate(() => console.log('immediate'));\nPromise.resolve().then(() => console.log('promise'));\nprocess.nextTick(() => console.log('nextTick'));\nconsole.log('B');",
+    prog: [['log', 'A'], ['timeout', [['log', 'timeout']]], ['immediate', [['log', 'immediate']]], ['then', [['log', 'promise']]], ['tick', [['log', 'nextTick']]], ['log', 'B']],
+    note: 'Code đồng bộ chạy hết trước. Rồi nextTick, rồi Promise (microtask), sau đó mới tới vòng lặp: timers, poll, check. Lưu ý: trong script chính, <code>setTimeout(0)</code> và <code>setImmediate</code> có thể đổi chỗ tùy máy, đừng dựa vào thứ tự đó.' },
+  { id: 'await', t: 'async / await', code: "async function f() {\n  console.log('f: trước await');\n  await null;\n  console.log('f: sau await');\n}\nconsole.log('1');\nf();\nconsole.log('2');",
+    prog: [['log', '1'], ['log', 'f: trước await'], ['then', [['log', 'f: sau await']]], ['log', '2']],
+    note: 'Phần của hàm async chạy đồng bộ cho đến <code>await</code> đầu tiên. Phần sau await là một microtask, nên "2" in trước "f: sau await".' },
+  { id: 'timers', t: 'Microtask giữa các timer', code: "setTimeout(() => {\n  console.log('t1');\n  Promise.resolve().then(() => console.log('p trong t1'));\n}, 0);\nsetTimeout(() => console.log('t2'), 0);",
+    prog: [['timeout', [['log', 't1'], ['then', [['log', 'p trong t1']]]]], ['timeout', [['log', 't2']]]],
+    note: 'Sau mỗi callback của timer, Node xả microtask ngay (từ Node 11). Nên "p trong t1" nằm giữa t1 và t2.' },
+  { id: 'io', t: 'Trong callback I/O', code: "const fs = require('node:fs');\nfs.readFile(__filename, () => {\n  setTimeout(() => console.log('timeout'), 0);\n  setImmediate(() => console.log('immediate'));\n});",
+    prog: [['io', [['timeout', [['log', 'timeout']]], ['immediate', [['log', 'immediate']]]]]],
+    note: 'Đang ở pha Poll, pha kế tiếp là Check nên <code>setImmediate</code> luôn chạy trước <code>setTimeout</code>. Đây là trường hợp thứ tự được đảm bảo.' },
+  { id: 'chain', t: 'nextTick lồng trong Promise', code: "Promise.resolve()\n  .then(() => {\n    console.log('p1');\n    process.nextTick(() => console.log('tick trong p1'));\n  })\n  .then(() => console.log('p2'));\nprocess.nextTick(() => console.log('tick'));",
+    prog: [['then', [['log', 'p1'], ['tick', [['log', 'tick trong p1']]], ['then', [['log', 'p2']]]]], ['tick', [['log', 'tick']]]],
+    note: 'Hàng microtask được xả hết (p1 rồi p2) trước khi quay lại hàng nextTick, nên "tick trong p1" ra sau "p2". Câu hỏi phỏng vấn kinh điển.' },
+];
+function simulate(prog) {
+  const out = [], frames = [], q = { tick: [], micro: [], timer: [], io: [], imm: [] };
+  const KEY = { timeout: 'timer', immediate: 'imm', then: 'micro', tick: 'tick', io: 'io' };
+  const DESC = { timeout: 'setTimeout: callback vào hàng Timers', immediate: 'setImmediate: callback vào hàng Check', then: 'Promise.then (hoặc sau await): vào hàng Microtask', tick: 'process.nextTick: vào hàng nextTick', io: 'fs.readFile: giao việc cho hệ điều hành, xong sẽ vào hàng Poll' };
+  const label = (type, ops) => { const l = ops.find((o) => o[0] === 'log'); return type + (l ? ': ' + l[1] : ''); };
+  const snap = (phase, desc, cur) => frames.push({ phase, desc, cur, out: out.slice(), q: Object.fromEntries(Object.entries(q).map(([k, v]) => [k, v.map((x) => x.label)])) });
+  const exec = (ops, phase, cur) => { for (const op of ops) { if (op[0] === 'log') { out.push(op[1]); snap(phase, 'console.log: in ra "' + op[1] + '"', cur); } else { q[KEY[op[0]]].push({ ops: op[1], label: label(op[0], op[1]) }); snap(phase, DESC[op[0]], cur); } } };
+  const runCb = (it, phase) => { snap(phase, 'Chạy callback ' + it.label, it.label); exec(it.ops, phase, it.label); };
+  const drain = () => {
+    if (q.tick.length || q.micro.length) snap(q.tick.length ? 'nextTick' : 'microtask', 'Xả hàng đợi: nextTick trước, rồi Microtask, lặp đến khi hết', 'engine');
+    do { while (q.tick.length) runCb(q.tick.shift(), 'nextTick'); while (q.micro.length) runCb(q.micro.shift(), 'microtask'); } while (q.tick.length || q.micro.length);
+  };
+  snap('main', 'Bắt đầu chạy script chính (code đồng bộ)', 'script chính');
+  exec(prog, 'main', 'script chính'); drain();
+  let guard = 0;
+  while ((q.timer.length || q.io.length || q.imm.length) && guard++ < 10) {
+    const timers = q.timer.splice(0); if (timers.length) snap('timers', 'Event loop: pha Timers', 'engine'); for (const t of timers) { runCb(t, 'timers'); drain(); }
+    const ios = q.io.splice(0); if (ios.length) snap('poll', 'Event loop: pha Poll (I/O xong)', 'engine'); for (const t of ios) { runCb(t, 'poll'); drain(); }
+    const imms = q.imm.splice(0); if (imms.length) snap('check', 'Event loop: pha Check (setImmediate)', 'engine'); for (const t of imms) { runCb(t, 'check'); drain(); }
+  }
+  snap('end', 'Hết việc, event loop thoát', 'không còn gì');
+  return { frames, out };
+}
+function predictOptions(out) {
+  const sw = (a, i, j) => { const c = a.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; };
+  const opts = [{ text: out.join(' → '), ok: true }];
+  for (const c of [sw(out, 0, 1), sw(out, out.length - 2, out.length - 1), sw(out, 1, 2), out.slice(1).concat(out[0])]) {
+    const s = c.join(' → '); if (!opts.some((o) => o.text === s)) opts.push({ text: s, ok: false }); if (opts.length >= 3) break;
+  }
+  const k = out.length % opts.length; return opts.slice(k).concat(opts.slice(0, k));
+}
+const SIM = { p: 0, i: 0, pick: null, timer: null };
+const LANES = [['tick', 'process.nextTick', 'ưu tiên cao nhất', 'nextTick'], ['micro', 'Microtask', 'Promise, await', 'microtask'], ['timer', 'Timers', 'setTimeout', 'timers'], ['io', 'Poll (I/O)', 'file, mạng xong', 'poll'], ['imm', 'Check', 'setImmediate', 'check']];
+function renderSim() {
+  const el = $('#sim'); if (!el) return;
+  const P = PRESETS[SIM.p], { frames, out } = simulate(P.prog), f = frames[SIM.i], last = SIM.i >= frames.length - 1;
+  const opts = predictOptions(out);
+  el.innerHTML = '<div class="chips">' + PRESETS.map((x, i) => '<button data-sp="' + i + '" class="' + (i === SIM.p ? 'on' : '') + '">' + x.t + '</button>').join('') + '</div>' +
+    '<div class="sim"><div><div class="codebox"><pre><code>' + hl(P.code, 'js') + '</code></pre></div>' +
+    '<div class="box" style="margin-top:8px"><h4>Dự đoán trước: in ra theo thứ tự nào?</h4>' + opts.map((o, i) => '<button class="opt ' + (SIM.pick === null ? '' : o.ok ? 'right' : SIM.pick === i ? 'wrong' : '') + '" data-pick="' + i + '"' + (SIM.pick !== null ? ' disabled' : '') + '>' + esc(o.text) + '</button>').join('') +
+    (SIM.pick !== null ? '<p style="margin:6px 0 0"><b class="' + (opts[SIM.pick].ok ? '' : '') + '">' + (opts[SIM.pick].ok ? 'Đúng.' : 'Chưa đúng.') + '</b> ' + P.note + '</p>' : '<p style="color:var(--muted);font-size:12px;margin:6px 0 0">Chọn một đáp án, rồi bấm Bước tiếp để xem máy chạy từng bước.</p>') + '</div></div>' +
+    '<div><div class="stackbar"><b>Đang chạy</b><span>' + esc(f.cur) + '</span><div style="color:var(--muted);font-size:13px;margin-top:2px">' + esc(f.desc) + '</div></div>' +
+    LANES.map(([k, n, s, ph]) => '<div class="lane ' + (f.phase === ph ? 'hot' : '') + '"><div class="ln">' + n + '<small>' + s + '</small></div>' + f.q[k].map((x) => '<span class="item">' + esc(x) + '</span>').join('') + '</div>').join('') +
+    '<div class="console"><span style="color:var(--muted)">Console:</span> ' + (f.out.length ? f.out.map((x) => esc(x)).join('<br>') : '') + '</div>' +
+    '<div class="chips"><button data-sa="prev"' + (SIM.i === 0 ? ' disabled' : '') + '>◀ Lùi</button><button data-sa="next"' + (last ? ' disabled' : '') + '>Bước tiếp ▶</button><button data-sa="play">' + (SIM.timer ? '⏸ Dừng' : '▶ Tự chạy') + '</button><button data-sa="reset">Làm lại</button><span style="color:var(--muted);font-size:12px;align-self:center">Bước ' + (SIM.i + 1) + '/' + frames.length + '</span></div></div></div>';
+}
+function simAction(a) {
+  const n = simulate(PRESETS[SIM.p].prog).frames.length;
+  if (a === 'next') SIM.i = Math.min(n - 1, SIM.i + 1);
+  if (a === 'prev') SIM.i = Math.max(0, SIM.i - 1);
+  if (a === 'reset') { SIM.i = 0; SIM.pick = null; }
+  if (a === 'play') { if (SIM.timer) { clearInterval(SIM.timer); SIM.timer = null; } else SIM.timer = setInterval(() => { if (SIM.i >= n - 1) { clearInterval(SIM.timer); SIM.timer = null; } else SIM.i++; renderSim(); }, 900); }
+  renderSim();
+}
+
+/* ============ Flashcard ============ */
+const FC = [
+  ['JS', 'Closure là gì?', 'Hàm giữ tham chiếu tới biến của scope nơi nó được tạo, kể cả khi scope đó đã chạy xong. Dùng cho trạng thái riêng tư, factory, callback. Cẩn thận: giữ object lớn trong closure gây rò bộ nhớ.'],
+  ['JS', '<code>==</code> khác <code>===</code>?', '<code>==</code> ép kiểu rồi so, <code>===</code> so chặt cả kiểu. Luôn dùng <code>===</code>; ngoại lệ hợp lý là <code>x == null</code> để bắt cả null và undefined.'],
+  ['JS', '<code>this</code> trong hàm thường và arrow function?', 'Hàm thường: <code>this</code> phụ thuộc cách GỌI. Arrow: lấy <code>this</code> của nơi ĐỊNH NGHĨA, nên hợp cho callback.'],
+  ['JS', '<code>await</code> trong <code>forEach</code> có chờ không?', 'Không. <code>forEach</code> bỏ qua Promise trả về. Dùng <code>for...of</code> (tuần tự) hoặc <code>Promise.all(arr.map(...))</code> (song song).'],
+  ['JS', '<code>Promise.all</code>, <code>allSettled</code>, <code>race</code>, <code>any</code>?', 'all: một cái lỗi là lỗi ngay. allSettled: chờ hết, trả trạng thái từng cái. race: cái xong đầu tiên (kể cả lỗi). any: cái thành công đầu tiên.'],
+  ['JS', '<code>unknown</code> khác <code>any</code>?', '<code>any</code> tắt kiểm tra kiểu. <code>unknown</code> bắt buộc thu hẹp kiểu trước khi dùng. Dữ liệu từ ngoài vào nên là <code>unknown</code> rồi validate (zod).'],
+  ['JS', 'interface và type khác gì?', 'Gần giống nhau. interface có thể mở rộng/gộp khai báo; type mạnh hơn với union, mapped type. Chọn một quy ước và giữ nhất quán trong team.'],
+  ['JS', 'Object truyền theo giá trị hay tham chiếu?', 'Luôn truyền giá trị, nhưng với object thì giá trị là bản sao của tham chiếu: sửa thuộc tính thì bên ngoài thấy, gán lại biến thì không.'],
+  ['Node', 'Node đơn luồng, sao xử lý được nhiều request?', 'JS chạy một luồng, nhưng I/O không chặn: giao việc cho hệ điều hành hoặc thread pool rồi đăng ký callback. Event loop chạy callback khi việc xong.'],
+  ['Node', 'Thứ tự nextTick, Promise, setTimeout, setImmediate?', 'Sau code đồng bộ: nextTick, rồi microtask (Promise). Sau đó vòng lặp: timers, poll, check (setImmediate). Sau mỗi callback lại xả nextTick và microtask.'],
+  ['Node', 'Cái gì làm event loop bị chặn?', 'Vòng lặp CPU nặng, JSON.parse hoặc stringify khổng lồ, regex thảm họa, API <code>*Sync</code> trong request. Giải pháp: worker_threads, queue, stream, tách service.'],
+  ['Node', 'Thread pool của libuv dùng cho gì?', 'fs, dns.lookup, crypto (pbkdf2, scrypt), zlib. Mặc định 4 luồng (<code>UV_THREADPOOL_SIZE</code>). Socket mạng dùng cơ chế của hệ điều hành, không qua pool.'],
+  ['Node', 'Stream và backpressure?', 'Stream xử lý dữ liệu theo từng mảnh, không nạp hết vào RAM. Khi nơi ghi chậm, <code>write()</code> trả false, nguồn tạm dừng đến sự kiện <code>drain</code>. Dùng <code>pipeline</code> để xử lý lỗi và dọn dẹp đúng.'],
+  ['Node', 'worker_threads, child_process, cluster?', 'worker_threads: luồng trong cùng process, hợp việc nặng CPU. child_process: process riêng. cluster: nhiều process chung cổng; trong container thường chạy 1 process mỗi container và scale bằng orchestrator.'],
+  ['Node', 'CommonJS và ESM?', 'CJS: <code>require</code>, đồng bộ, có <code>__dirname</code>. ESM: <code>import</code>, tĩnh, bất đồng bộ, có top-level await. Dự án mới nên dùng ESM; bật bằng <code>"type": "module"</code>.'],
+  ['Node', 'Xử lý lỗi async thế nào?', 'try/catch quanh await, middleware lỗi tập trung, phân biệt lỗi vận hành (trả 4xx/5xx, retry) với lỗi lập trình (sửa code). Promise bị reject không bắt thì Node (từ v15) làm crash process.'],
+  ['Node', 'Tắt êm (graceful shutdown)?', 'Nhận SIGTERM → ngừng nhận kết nối mới (<code>server.close</code>) → chờ request đang chạy → đóng DB/queue → thoát. Đặt timeout cứng để không treo.'],
+  ['Node', 'Rò bộ nhớ thường do đâu, tìm thế nào?', 'Cache không giới hạn, listener không gỡ, biến toàn cục, closure giữ object lớn. Tìm bằng <code>--inspect</code> + heap snapshot, theo dõi <code>heapUsed</code> và RSS.'],
+  ['API', 'Middleware là gì?', 'Hàm <code>(req, res, next)</code> chạy theo thứ tự đăng ký: log, auth, rate limit, parse, validate. Middleware lỗi (4 tham số) đặt cuối cùng.'],
+  ['API', '401 khác 403?', '401: chưa xác thực hoặc token sai. 403: đã xác thực nhưng không có quyền.'],
+  ['API', 'POST, PUT, PATCH?', 'POST: tạo hoặc thực hiện hành động, không idempotent. PUT: thay thế toàn bộ, idempotent. PATCH: sửa một phần.'],
+  ['API', 'Mã 202 dùng khi nào?', 'Đã nhận yêu cầu, đang xử lý nền. Trả kèm id để client hỏi trạng thái sau.'],
+  ['API', 'JWT: ưu và nhược?', 'Stateless, dễ scale. Nhưng khó thu hồi trước hạn: dùng access token ngắn + refresh token. Payload chỉ được ký, không mã hóa, nên không để dữ liệu nhạy cảm.'],
+  ['API', 'Phân trang offset và cursor?', 'Offset đơn giản nhưng chậm với bảng lớn và lệch khi dữ liệu thay đổi. Cursor ổn định và nhanh, nhưng khó nhảy tới trang bất kỳ.'],
+  ['API', 'Bảo vệ API cơ bản?', 'helmet, CORS đúng, rate limit, validate mọi input, query tham số hóa, token hết hạn, không log secret, <code>npm audit</code>, giới hạn kích thước body.'],
+  ['Dữ liệu', 'N+1 query là gì?', '1 query lấy danh sách rồi N query lấy chi tiết từng phần tử. Sửa bằng JOIN, hoặc 2 query với <code>WHERE id IN (...)</code>, hoặc DataLoader/include của ORM.'],
+  ['Dữ liệu', 'Transaction và isolation?', 'ACID. Postgres mặc định Read Committed. Chống race bằng unique constraint, khóa dòng (<code>FOR UPDATE</code>) hoặc optimistic lock (cột version). Giữ transaction ngắn.'],
+  ['Dữ liệu', 'Connection pool để làm gì?', 'Tái sử dụng kết nối thay vì mở mới mỗi query. Chọn kích thước theo giới hạn của DB và số instance. Luôn <code>release()</code> trong <code>finally</code>.'],
+  ['Dữ liệu', 'Cache-aside?', 'Đọc cache; miss thì đọc DB rồi ghi cache có TTL. Khi ghi DB thì xóa hoặc cập nhật cache. Coi chừng cache stampede khi nhiều request cùng miss.'],
+  ['Dữ liệu', 'Khi nào thêm index?', 'Cột hay lọc, join, sắp xếp. Thứ tự cột trong index kép quan trọng. Kiểm tra bằng <code>EXPLAIN ANALYZE</code>. Index làm chậm ghi và tốn dung lượng.'],
+  ['Queue', 'At-least-once là gì, hệ quả?', 'Mỗi message được giao ít nhất 1 lần, có thể nhiều lần. Hệ quả: handler phải idempotent.'],
+  ['Queue', 'Visibility timeout?', 'Thời gian message bị ẩn sau khi được giao. Hết hạn mà chưa ack thì giao lại (worker chết hoặc treo). Phải lớn hơn thời gian xử lý.'],
+  ['Queue', 'Idempotency key khác transactionId?', 'Idempotency-Key ở tầng HTTP, chống client gửi lại cùng request. transactionId do nghiệp vụ đặt, chống xử lý trùng một giao dịch. Thêm jobId ở queue và đánh dấu "đã làm" trong handler.'],
+  ['Queue', 'DLQ để làm gì?', 'Giữ message hỏng (hết lượt thử hoặc lỗi không thể retry) để người vận hành xem, sửa, đẩy lại. Cần cảnh báo khi DLQ có message.'],
+  ['Queue', 'Outbox pattern?', 'Ghi dữ liệu và một dòng "sự kiện cần gửi" trong cùng một transaction DB; tiến trình relay đọc bảng outbox rồi đẩy lên queue. Tránh mất sự kiện khi ghi DB xong mà đẩy queue lỗi.'],
+  ['AWS', 'Lambda cold start và cách giảm?', 'Lần khởi tạo môi trường đầu tiên. Giảm: bundle nhỏ (esbuild), khởi tạo client ngoài handler, tăng memory (tăng CPU), provisioned concurrency khi cần.'],
+  ['AWS', 'SQS Standard và FIFO?', 'Standard: at-least-once, thứ tự không đảm bảo, thông lượng rất cao. FIFO: thứ tự theo message group, khử trùng theo deduplication ID, thông lượng thấp hơn.'],
+  ['AWS', 'SQS + Lambda, lỗi một phần batch?', 'Bật <code>ReportBatchItemFailures</code> và trả <code>batchItemFailures</code> chứa id message lỗi. Nếu không, cả batch bị thử lại.'],
+  ['AWS', 'Visibility timeout của SQS so với timeout của Lambda?', 'Theo tài liệu AWS, đặt visibility timeout của queue ít nhất gấp 6 lần timeout của function. Hãy kiểm tra lại tài liệu hiện hành trước khi cấu hình.'],
+  ['AWS', 'Chọn Lambda hay container (ECS/EKS)?', 'Lambda: tải thất thường, không muốn quản hạ tầng, tác vụ ngắn. Container: chạy dài, kết nối bền (websocket), cần kiểm soát runtime, tải ổn định.'],
+  ['Vận hành', 'Liveness và readiness?', 'Liveness: process còn sống không (không thì khởi động lại). Readiness: sẵn sàng nhận traffic chưa, kiểm tra phụ thuộc như DB (chưa thì tạm ngừng chuyển traffic tới).'],
+  ['Vận hành', 'Log tốt là thế nào?', 'JSON có cấu trúc, có requestId hoặc traceId, đúng mức log, không chứa secret hoặc dữ liệu cá nhân.'],
+  ['Vận hành', 'Dockerfile tốt cho Node?', 'Multi-stage, <code>npm ci --omit=dev</code>, chạy bằng user <code>node</code>, <code>CMD ["node", ...]</code> (không dùng <code>npm start</code> làm PID 1 để nhận đúng tín hiệu), có health check.'],
+];
+const fcKey = (i) => 'fc:' + i;
+
+/* ============ Các mục ============ */
+const SECTIONS = [
+  { id: 'start', label: 'Bắt đầu', render: () => head('Sổ tay Node.js', 'Một nơi để ôn mọi thứ dev Node.js khoảng 2 năm kinh nghiệm cần nắm: khái niệm, hình minh họa, lab thực hành và câu hỏi phỏng vấn. Mỗi mục ngắn, đọc xong là làm lab.') +
+    box('<h3>Dev ~2 năm Node cần có gì</h3>' + dg({ w: 780, h: 232, nodes: [
+      nd('a', 10, 14, 146, 66, 'Nền tảng\nJS/TS · event loop\nstream · lỗi', 'a'), nd('b', 162, 14, 146, 66, 'API\nExpress/Nest · auth\nvalidate · lỗi chuẩn', 'a'), nd('c', 314, 14, 146, 66, 'Dữ liệu\nSQL + ORM · pool\ntransaction · cache', 'a'),
+      nd('d', 466, 14, 146, 66, 'Chất lượng\ntest · review\nCI', 'a'), nd('e', 618, 14, 152, 66, 'Vận hành\nDocker · log · AWS\nbảo mật', 'a'),
+      nd('f', 10, 108, 760, 50, 'Hệ phân tán: queue · retry · backoff · idempotency · DLQ', 'info'), nd('g', 10, 174, 760, 44, 'Tiêu chí: giải thích được VÌ SAO, và đoán được CHỖ NÀO sẽ hỏng', 'ok') ] }) +
+      '<p style="margin:0">Dev 2 năm không chỉ viết được code chạy. Họ biết giải thích lý do chọn cách làm, và biết hệ thống hỏng ở đâu trước khi nó hỏng.</p>') +
+    cards([
+      ['Cách dùng', '<ol><li>Đọc mục, chú ý hình và bảng.</li><li>Làm lab ở cuối mục (có kết quả mong đợi để tự chấm).</li><li>Ôn flashcard ở mục 9, bấm "Đã nhớ" khi tự giải thích được.</li></ol>'],
+      ['Có 1 giờ', '<p>Mục <a href="#node">2</a> (chơi mô phỏng event loop), rồi <a href="#interview">9</a> (flashcard nhóm JS và Node).</p>'],
+      ['Có 1 ngày', '<p>Mục <a href="#js">1</a>, <a href="#node">2</a>, <a href="#api">3</a>, làm Lab 1-3, rồi flashcard.</p>'],
+      ['Có 1 tuần', '<p>Đi hết các mục theo thứ tự. Mỗi ngày một mục: đọc 30 phút, lab 60 phút, flashcard 15 phút.</p>'],
+    ]) +
+    note('say', '<p>Khi nói về kinh nghiệm, dùng công thức <b>Đã làm → Hiểu → Đang học</b>: "Tôi đã làm ... (việc thật). Tôi hiểu cơ chế ... (kiến thức trong sổ tay này). Phần ... tôi mới thực hành ở mức lab." Nói đúng mức độ vừa an toàn vừa thuyết phục, vì người phỏng vấn thường hỏi sâu thêm 2-3 câu.</p>') },
+
+  { id: 'js', label: 'JS/TS cốt lõi', render: () => head('JavaScript và TypeScript cốt lõi', 'Nền của mọi thứ. Phần lớn lỗi "khó hiểu" trong Node đến từ async và this.') +
+    cards([
+      ['Closure', '<p>Hàm nhớ biến của nơi nó được tạo.</p>' + code("function counter() {\n  let n = 0;\n  return () => ++n;   // giữ n\n}\nconst c = counter();\nc(); c();  // 1, 2")],
+      ['this', '<p>Hàm thường: <code>this</code> tùy cách gọi. Arrow: lấy từ nơi định nghĩa.</p>' + code("class Timer {\n  n = 0;\n  start() {\n    setInterval(() => this.n++, 1000); // arrow giữ this\n  }\n}")],
+      ['Prototype và class', '<p><code>class</code> là cú pháp bọc prototype. Method nằm ở prototype, dùng chung cho mọi instance, không bị copy.</p>'],
+      ['Module', T(['', 'CommonJS', 'ESM'], [['Cú pháp', '<code>require</code>', '<code>import</code>'], ['Nạp', 'đồng bộ', 'bất đồng bộ, tĩnh'], ['Đặc biệt', '<code>__dirname</code>', 'top-level await'], ['Bật', 'mặc định', '<code>"type":"module"</code>']])],
+    ]) +
+    box('<h3>Promise và async/await</h3><p>Promise có 3 trạng thái: pending, fulfilled, rejected. <code>async</code> luôn trả Promise; <code>await</code> tạm dừng hàm đó (không chặn cả chương trình).</p>' +
+      T(['Hàm', 'Chờ', 'Khi có lỗi'], [['<code>Promise.all</code>', 'tất cả thành công', 'lỗi ngay khi một cái lỗi'], ['<code>allSettled</code>', 'tất cả xong', 'không lỗi, trả trạng thái từng cái'], ['<code>race</code>', 'cái xong đầu tiên', 'lỗi nếu cái đầu tiên lỗi'], ['<code>any</code>', 'cái thành công đầu tiên', 'chỉ lỗi nếu tất cả lỗi']]) +
+      code("// Tuần tự (chậm nếu độc lập nhau)\nfor (const id of ids) await load(id);\n// Song song\nconst all = await Promise.all(ids.map(load));\n// forEach KHÔNG chờ:\nids.forEach(async (id) => { await load(id); }); // sai") +
+      note('bad', '<ul><li><b>Promise "nổi"</b>: gọi hàm async mà quên <code>await</code>, lỗi bị nuốt hoặc thứ tự sai.</li><li><b>await trong vòng lặp</b> khi các việc độc lập, làm chậm vô ích.</li><li><b>Promise.all với 10.000 việc</b> mở 10.000 kết nối. Cần giới hạn song song (Lab 1).</li></ul>')) +
+    box('<h3>TypeScript đủ dùng</h3>' + T(['Khái niệm', 'Ý nghĩa'], [['<code>strict: true</code>', 'bật mọi kiểm tra chặt, luôn nên bật'], ['<code>unknown</code> thay vì <code>any</code>', 'bắt buộc thu hẹp kiểu trước khi dùng'], ['Union và narrowing', '<code>string | number</code>, rồi <code>typeof</code>, <code>in</code>, kiểm tra thuộc tính'], ['Discriminated union', 'mỗi biến thể có trường <code>type</code>, compiler biết chính xác biến thể nào'], ['Generics', 'hàm hoặc kiểu dùng cho nhiều kiểu: <code>function first&lt;T&gt;(a: T[]): T</code>'], ['Utility types', '<code>Partial</code>, <code>Pick</code>, <code>Omit</code>, <code>Record</code>, <code>Awaited</code>, <code>ReturnType</code>']]) +
+      code("type Result =\n  | { ok: true; data: string }\n  | { ok: false; error: Error };\n\nfunction show(r: Result) {\n  if (r.ok) return r.data;   // TS biết có data\n  return r.error.message;     // và ở đây có error\n}") +
+      note('ok', 'TypeScript chỉ kiểm tra lúc build, chạy lên là mất hết kiểu. Dữ liệu từ request, DB, queue vẫn phải <b>validate lúc chạy</b> (zod, valibot).')) +
+    lab('l1', 'Tự viết pLimit: giới hạn số việc chạy song song', 'Hiểu async, Promise và closure bằng cách tự làm.',
+      '<p>Lưu thành <code>plimit.js</code>, hoàn thiện hàm <code>pLimit</code>, rồi chạy <code>node plimit.js</code>.</p>' +
+      code("async function pLimit(tasks, limit) {\n  // TODO: chạy tối đa `limit` task cùng lúc, trả mảng kết quả đúng thứ tự\n}\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nlet running = 0, peak = 0;\nconst tasks = Array.from({ length: 10 }, (_, i) => async () => {\n  running++; peak = Math.max(peak, running);\n  await sleep(200);\n  running--; return i;\n});\nconsole.time('total');\npLimit(tasks, 3).then((r) => { console.timeEnd('total'); console.log({ peak, r }); });", 'js', 'plimit.js') +
+      expect('<code>total</code> khoảng <b>800ms</b> (10 việc / 3 = 4 đợt × 200ms), <code>peak: 3</code>, <code>r</code> là <code>[0,1,...,9]</code> đúng thứ tự.') +
+      '<details><summary>Xem đáp án (thử trước đã)</summary>' + code("async function pLimit(tasks, limit) {\n  const results = new Array(tasks.length);\n  let next = 0;\n  async function worker() {\n    while (next < tasks.length) {\n      const i = next++;          // an toàn: JS đơn luồng giữa các await\n      results[i] = await tasks[i]();\n    }\n  }\n  await Promise.all(Array.from({ length: limit }, worker));\n  return results;\n}") + '<p>Ý chính: có <code>limit</code> "công nhân" cùng lấy việc từ một con trỏ chung.</p></details>') },
+
+  { id: 'node', label: 'Node runtime', render: () => head('Node runtime: event loop, stream, lỗi', 'Phần phân biệt người hiểu Node với người chỉ dùng framework. Chơi mô phỏng trước, đọc sau.') +
+    box('<h3>Node gồm những gì</h3>' + dg({ w: 640, h: 300, nodes: [
+      nd('a', 20, 12, 290, 50, 'Code của bạn (JS/TS)', 'a'), nd('b', 20, 82, 290, 50, 'V8\nchạy JavaScript', 'm'), nd('c', 20, 152, 290, 50, 'Node core APIs\nfs · http · crypto · stream', 'm'), nd('d', 20, 222, 290, 56, 'libuv\nevent loop + thread pool', 'info'),
+      nd('e', 360, 152, 260, 56, 'Thread pool (mặc định 4)\nfs · crypto · zlib · dns.lookup', 'warn'), nd('f', 360, 226, 260, 52, 'Hệ điều hành\nepoll · kqueue · IOCP (socket)', 'ok') ],
+      edges: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e', 'việc blocking'], ['d', 'f', 'I/O mạng']] }) +
+      '<p style="margin:0">JS chạy trên <b>một luồng</b>. Việc chờ (mạng, file) được giao cho hệ điều hành hoặc thread pool; xong thì callback quay lại hàng đợi của event loop.</p>') +
+    box('<h3>Mô phỏng event loop: tự dự đoán rồi xem</h3><p style="color:var(--muted)">Chọn một ví dụ, đoán thứ tự in ra, bấm Bước tiếp để xem hàng đợi nào đang chạy.</p><div id="sim"></div>') +
+    box('<h3>Quy tắc cần thuộc</h3><ol><li>Code đồng bộ chạy hết trước.</li><li>Sau mỗi callback: xả <b>nextTick</b>, rồi <b>microtask</b> (Promise, sau await), lặp đến hết.</li><li>Vòng lặp theo pha: <b>timers → poll (I/O) → check (setImmediate)</b>.</li><li>Trong callback I/O, <code>setImmediate</code> luôn trước <code>setTimeout</code>.</li></ol>' +
+      note('bad', '<b>Chặn event loop</b> là lỗi hiệu năng số một. Vòng lặp CPU nặng, <code>JSON.parse</code> file khổng lồ, regex thảm họa, hàm <code>*Sync</code> trong request đều làm MỌI request khác đứng. Giải pháp: <code>worker_threads</code>, queue, stream, tách service.')) +
+    box('<h3>Stream và backpressure</h3>' + dg({ w: 720, h: 168, nodes: [
+      nd('r', 10, 22, 190, 62, 'Readable\nfile · request · DB cursor', 'a'), nd('t', 265, 22, 190, 62, 'Transform\nparse · nén · lọc', 'm'), nd('w', 520, 22, 190, 62, 'Writable\nsocket · file · response', 'a'),
+      nd('n', 10, 108, 700, 46, 'Buffer đầy (highWaterMark) → write() trả false → nguồn tạm dừng → sự kiện "drain" → chạy tiếp', 'warn') ],
+      edges: [['r', 't', 'từng chunk'], ['t', 'w', 'từng chunk']] }) +
+      '<p>Stream xử lý dữ liệu theo từng mảnh nên bộ nhớ gần như không đổi dù file 10 GB. Backpressure giúp nơi chậm "phanh" nơi nhanh, tránh tràn RAM.</p>' +
+      code("import { pipeline } from 'node:stream/promises';\nimport { createReadStream, createWriteStream } from 'node:fs';\nimport { createGzip } from 'node:zlib';\n\nawait pipeline(\n  createReadStream('big.log'),\n  createGzip(),\n  createWriteStream('big.log.gz'),   // lỗi ở đâu cũng được dọn dẹp\n);", 'ts')) +
+    cards([
+      ['EventEmitter', '<p><code>on</code>, <code>once</code>, <code>emit</code>. Sự kiện <code>error</code> mà không có listener sẽ làm process crash. Quá nhiều listener cùng loại gây cảnh báo rò bộ nhớ.</p>'],
+      ['Xử lý lỗi', '<ul><li><b>Lỗi vận hành</b> (mạng, DB, input sai): bắt, trả mã lỗi, retry.</li><li><b>Lỗi lập trình</b> (bug): để crash, log fatal.</li><li>Promise reject không bắt: Node từ v15 mặc định làm crash.</li></ul>'],
+      ['Worker threads và process', T(['', 'Dùng khi'], [['worker_threads', 'việc nặng CPU, chia sẻ bộ nhớ'], ['child_process', 'chạy chương trình khác'], ['cluster', 'nhiều process chung cổng (trong container thường 1 process/container)']])],
+      ['Công cụ có sẵn', '<ul><li><code>fetch</code>, <code>AbortController</code> (từ Node 18)</li><li><code>node:test</code>, <code>node --watch</code></li><li><code>AsyncLocalStorage</code>: giữ requestId xuyên suốt</li><li>Tiền tố <code>node:</code> cho module lõi</li></ul>'],
+    ]) +
+    box('<h3>Tắt êm khi nhận SIGTERM</h3>' + code("let shuttingDown = false;\nasync function shutdown(signal) {\n  if (shuttingDown) return;\n  shuttingDown = true;\n  console.log('shutdown', signal);\n  setTimeout(() => process.exit(1), 10_000).unref();   // chốt chặn cứng\n  server.close(async () => {          // ngừng nhận kết nối mới, chờ request đang chạy\n    await db.end();                   // đóng DB, queue...\n    process.exit(0);\n  });\n  server.closeIdleConnections?.();\n}\nprocess.on('SIGTERM', () => shutdown('SIGTERM'));\nprocess.on('SIGINT', () => shutdown('SIGINT'));") +
+      note('ok', 'Khi deploy, orchestrator gửi SIGTERM rồi chờ một thời gian trước khi kill. Không tắt êm thì request đang chạy bị cắt giữa chừng.')) +
+    box('<h3>Bộ nhớ và hiệu năng</h3><ul><li><b>Rò bộ nhớ thường do</b>: cache không giới hạn, listener không gỡ, biến toàn cục, closure giữ object lớn.</li><li><b>Công cụ</b>: <code>node --inspect</code> + Chrome DevTools (heap snapshot), <code>--cpu-prof</code>, <code>process.memoryUsage()</code>.</li><li><b>Đo trước khi tối ưu</b>: tìm điểm nghẽn thật bằng profiler.</li></ul>' +
+      note('tip', 'Bản Node: chọn bản <b>LTS đang hoạt động</b> và kiểm tra lịch phát hành trên nodejs.org trước khi chốt, vì lịch này thay đổi. Cố định bằng <code>engines</code> trong package.json và file <code>.nvmrc</code>.')) +
+    lab('l2', 'Chặn event loop và xử lý file lớn bằng stream', 'Tận mắt thấy event loop bị chặn và bộ nhớ khi dùng stream.',
+      '<h4>Phần A: chặn event loop</h4>' + code("const http = require('node:http');\nhttp.createServer((req, res) => {\n  if (req.url === '/block') {\n    const end = Date.now() + 5000;\n    while (Date.now() < end) {}        // chặn event loop 5 giây\n    return res.end('blocked done\\n');\n  }\n  res.end('pong\\n');\n}).listen(3000);", 'js', 'block.js') +
+      code("node block.js\n# terminal 2:\ncurl localhost:3000/block &\ntime curl localhost:3000/ping", 'bash') +
+      expect('Dù <code>/ping</code> không làm gì, nó mất khoảng <b>5 giây</b> mới trả lời. Việc của bạn: đưa vòng lặp vào <code>worker_threads</code> (hoặc bỏ nó đi) để <code>/ping</code> trả lời ngay lập tức.') +
+      '<h4>Phần B: đếm dòng ERROR trong file 5 triệu dòng</h4>' + code("seq 1 5000000 | awk '{print \"2026-01-01 \" (NR%50==0?\"ERROR\":\"INFO\") \" req \" $0}' > big.log", 'bash') +
+      code("const fs = require('node:fs');\nconst readline = require('node:readline');\n(async () => {\n  let errors = 0;\n  const rl = readline.createInterface({ input: fs.createReadStream('big.log'), crlfDelay: Infinity });\n  for await (const line of rl) if (line.includes(' ERROR ')) errors++;\n  console.log({ errors, rssMB: Math.round(process.memoryUsage().rss / 1048576) });\n})();", 'js', 'count.js') +
+      expect('<code>errors: 100000</code> và <code>rssMB</code> nhỏ (vài chục MB). Thử thay bằng <code>readFileSync(...).split("\\n")</code> rồi so sánh <code>rssMB</code>.')) },
+
+  { id: 'api', label: 'API và framework', render: () => head('Xây API: pipeline, lớp, auth, lỗi', 'Framework nào cũng chung một ý: một chuỗi bước xử lý có thứ tự và một chỗ tập trung bắt lỗi.') +
+    box('<h3>Đường đi của một request</h3>' + dg({ w: 800, h: 190, nodes: [
+      nd('c', 6, 24, 96, 52, 'Client', 'm'), nd('a', 116, 24, 104, 52, 'requestId\nlog', 'a'), nd('b', 234, 24, 96, 52, 'Auth\nJWT', 'a'), nd('d', 344, 24, 104, 52, 'Rate limit', 'a'), nd('e', 462, 24, 104, 52, 'Validate\n(zod)', 'a'), nd('f', 580, 24, 104, 52, 'Handler\nuse case', 'ok'), nd('g', 698, 24, 96, 52, 'Response', 'm'),
+      nd('x', 300, 120, 200, 52, 'Error handler (cuối chuỗi)\nmọi lỗi về đây', 'bad') ],
+      edges: [['c', 'a'], ['a', 'b'], ['b', 'd'], ['d', 'e'], ['e', 'f'], ['f', 'g'], ['b', 'x', '', true], ['e', 'x', '', true], ['f', 'x', '', true]] }) +
+      '<p style="margin:0">Thứ tự có lý do: xác thực trước, rồi giới hạn tần suất, rồi validate (đừng tốn tài nguyên validate request không hợp lệ về mặt quyền).</p>') +
+    box('<h3>Chia lớp</h3>' + dg({ w: 600, h: 214, nodes: [nd('a', 20, 12, 220, 44, 'Controller / route\nHTTP: parse, mã trạng thái', 'a'), nd('b', 20, 76, 220, 44, 'Use case / service\nnghiệp vụ, không biết HTTP', 'ok'), nd('c', 20, 140, 220, 44, 'Repository\ntruy vấn DB', 'm'), nd('d', 330, 140, 220, 44, 'PostgreSQL', 'info'), nd('e', 330, 76, 220, 44, 'Queue · provider ngoài', 'warn')],
+      edges: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['b', 'e']] }) +
+      '<p style="margin:0">Controller mỏng, nghiệp vụ nằm ở use case nên test được mà không cần dựng HTTP. Cùng ý với Spring (Controller, Service, Repository).</p>') +
+    box('<h3>Chọn framework</h3>' + T(['', 'Express', 'Fastify', 'NestJS'], [['Triết lý', 'tối giản, phổ biến nhất', 'nhanh, validate bằng JSON schema', 'có cấu trúc: module, DI, decorator'], ['Hợp khi', 'API nhỏ-vừa, học nền', 'cần hiệu năng, schema rõ', 'dự án lớn, nhiều người, quen Spring'], ['Lưu ý', 'Express 5 tự chuyển lỗi của handler async vào error handler', 'hệ plugin riêng', 'học đường cong lớn hơn']]) +
+      note('tip', 'Quen Spring thì NestJS dễ vào nhất. Nhưng nên làm một API bằng Express hoặc Fastify trước để hiểu lớp bên dưới mà NestJS đang che đi.')) +
+    box('<h3>Ví dụ gọn: validate + lỗi tập trung</h3>' + code("import express from 'express';\nimport { z } from 'zod';\nimport { randomUUID } from 'node:crypto';\n\nconst app = express();\napp.use(express.json({ limit: '100kb' }));\n\nconst OrderBody = z.object({\n  customerId: z.string().min(1),\n  items: z.array(z.object({ sku: z.string(), qty: z.number().int().positive() })).min(1),\n});\n\napp.post('/orders', (req, res) => {\n  const parsed = OrderBody.safeParse(req.body);\n  if (!parsed.success)\n    return res.status(422).json({ error: { code: 'VALIDATION', details: parsed.error.issues } });\n  res.status(201).json({ id: randomUUID(), ...parsed.data });\n});\n\n// middleware lỗi: đặt CUỐI, đủ 4 tham số\napp.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {\n  console.error(err);\n  res.status(500).json({ error: { code: 'INTERNAL' } });   // không lộ stack\n});\napp.listen(3000);", 'ts')) +
+    cards([
+      ['Mã trạng thái', T(['Mã', 'Dùng khi'], [['200 / 201 / 204', 'OK / đã tạo / không có nội dung'], ['202', 'đã nhận, xử lý nền'], ['400 / 422', 'request sai / dữ liệu không hợp lệ'], ['401 / 403', 'chưa xác thực / không có quyền'], ['404 / 409', 'không thấy / xung đột (trùng)'], ['429', 'vượt rate limit'], ['500 / 503', 'lỗi server / tạm thời không phục vụ']])],
+      ['Phương thức', T(['', 'Ý nghĩa', 'Idempotent'], [['GET', 'đọc', 'có'], ['PUT', 'thay thế toàn bộ', 'có'], ['DELETE', 'xóa', 'có'], ['PATCH', 'sửa một phần', 'không bắt buộc'], ['POST', 'tạo / hành động', 'không']])],
+      ['Auth bằng JWT', '<ol><li>Đăng nhập → server ký access token (ngắn hạn) + refresh token.</li><li>Client gửi <code>Authorization: Bearer ...</code>.</li><li>Server verify chữ ký, hạn, nhóm quyền.</li></ol><p><b>Nhớ:</b> payload chỉ ký, không mã hóa; thu hồi khó nên token ngắn hạn.</p>'],
+      ['Quy ước nên có', '<ul><li>Lỗi thống nhất: <code>{ error: { code, message, details }, requestId }</code></li><li>Phân trang cursor cho bảng lớn</li><li>Versioning: <code>/v1/...</code></li><li><code>helmet</code>, CORS, rate limit, giới hạn body</li><li>OpenAPI để tài liệu hóa</li></ul>'],
+    ]) +
+    lab('l3', 'API orders có xác thực, validate, lỗi chuẩn', 'Ráp đủ các mảnh của một API thật.',
+      '<p>Dùng đoạn code trên làm khung (chạy bằng <code>npx tsx app.ts</code>), thêm dần các yêu cầu:</p><ol><li>Kho lưu tạm trong bộ nhớ.</li><li><code>GET /orders/:id</code> trả 200 hoặc 404.</li><li>Xác thực bằng header <code>Authorization: Bearer demo</code>, sai thì 401.</li><li>Gắn <code>requestId</code> vào mọi phản hồi lỗi.</li><li>Header <code>Idempotency-Key</code> cho POST: gửi lại cùng key thì trả lại kết quả cũ.</li><li><code>GET /health/live</code> và <code>/health/ready</code>.</li><li>Tắt êm khi nhận SIGTERM.</li></ol>' +
+      code("curl -i -X POST localhost:3000/orders -H 'content-type: application/json' -d '{}'\ncurl -i localhost:3000/orders/xxx\ncurl -i -X POST localhost:3000/orders -H 'authorization: Bearer demo' -H 'idempotency-key: k1' \\\n  -H 'content-type: application/json' -d '{\"customerId\":\"c1\",\"items\":[{\"sku\":\"a\",\"qty\":1}]}'", 'bash') +
+      expect('Body rỗng: <b>422</b> có <code>details</code>. Không có token: <b>401</b>. Tạo thành công: <b>201</b>. Gửi lại cùng <code>idempotency-key</code>: <b>cùng id</b>, không tạo thêm đơn.')) },
+
+  { id: 'data', label: 'Dữ liệu', render: () => head('Dữ liệu: pool, transaction, N+1, index, cache', 'Bạn đã biết SQL. Phần cần học thêm là cách Node giữ kết nối, ORM sinh query ra sao, và cache.') +
+    box('<h3>Connection pool</h3>' + dg({ w: 700, h: 120, nodes: [nd('a', 10, 30, 190, 56, 'App\nnhiều request cùng lúc', 'a'), nd('b', 255, 30, 190, 56, 'Pool (ví dụ 10)\ntái sử dụng kết nối', 'info'), nd('c', 500, 30, 190, 56, 'PostgreSQL\ngiới hạn kết nối', 'm')], edges: [['a', 'b'], ['b', 'c']] }) +
+      '<p>Hết kết nối trong pool thì request <b>xếp hàng chờ</b>. Tổng kết nối = pool × số instance, đừng vượt giới hạn của DB.</p>' +
+      code("const client = await pool.connect();\ntry {\n  await client.query('BEGIN');\n  await client.query('UPDATE accounts SET balance = balance - $1 WHERE id = $2', [100, 1]);\n  await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2', [100, 2]);\n  await client.query('COMMIT');\n} catch (e) {\n  await client.query('ROLLBACK');\n  throw e;\n} finally {\n  client.release();      // quên dòng này là cạn pool\n}", 'js')) +
+    box('<h3>N+1 query: lỗi hiệu năng phổ biến nhất của ORM</h3>' + dg({ w: 720, h: 150, nodes: [nd('a', 10, 20, 340, 52, '1 query lấy 100 đơn hàng\n+ 100 query lấy user từng đơn = 101 query', 'bad'), nd('b', 370, 20, 340, 52, '1 query JOIN\nhoặc 2 query: đơn + WHERE id IN (...)', 'ok'), nd('c', 10, 90, 700, 44, 'Mỗi query tốn một vòng mạng tới DB. 101 vòng mạng chậm hơn 1 vòng nhiều lần dù mỗi query rất nhanh.', 'm')] }) +
+      T(['Công cụ', 'Cách tránh N+1'], [['Prisma', '<code>include</code> / <code>select</code> quan hệ'], ['TypeORM', '<code>relations</code> hoặc QueryBuilder với join'], ['GraphQL', 'DataLoader (gom và cache theo request)'], ['SQL thuần', 'JOIN hoặc <code>IN (...)</code>']]) +
+      note('tip', 'Bật log query của ORM trong môi trường dev và đếm số query mỗi request. Đó là cách phát hiện N+1 nhanh nhất.')) +
+    cards([
+      ['Transaction', '<ul><li>ACID. Postgres mặc định <b>Read Committed</b>.</li><li>Chống race: unique constraint, <code>SELECT ... FOR UPDATE</code>, hoặc cột <code>version</code> (optimistic lock).</li><li>Giữ transaction <b>ngắn</b>, không gọi HTTP bên ngoài bên trong.</li></ul>'],
+      ['Index', '<ul><li>Index cột hay lọc, join, sắp xếp.</li><li>Index kép: thứ tự cột quan trọng.</li><li>Kiểm tra: <code>EXPLAIN ANALYZE</code> (Seq Scan → Index Scan).</li><li>Index làm chậm ghi, đừng index bừa.</li></ul>'],
+      ['Migration', '<p>Không sửa schema bằng tay. Dùng công cụ migration có phiên bản. Đổi lớn theo kiểu <b>expand → migrate → contract</b>: thêm cột mới, đổi code, rồi mới xóa cột cũ, để deploy không gãy.</p>'],
+      ['Chọn công cụ', T(['', 'Hợp khi'], [['pg / mysql2 + SQL', 'cần kiểm soát hoàn toàn'], ['Prisma', 'type-safe, năng suất, schema trung tâm'], ['TypeORM', 'quen kiểu Hibernate'], ['Drizzle / Knex', 'gần SQL, nhẹ']])],
+    ]) +
+    box('<h3>Redis: cache-aside và khóa đơn giản</h3>' + dg({ w: 760, h: 100, nodes: [nd('a', 10, 22, 130, 52, 'Đọc cache', 'a'), nd('b', 180, 22, 130, 52, 'Miss?\nđọc DB', 'warn'), nd('c', 350, 22, 150, 52, 'Ghi cache\nkèm TTL', 'a'), nd('d', 540, 22, 210, 52, 'Khi ghi DB: xóa/cập nhật cache', 'bad')], edges: [['a', 'b'], ['b', 'c'], ['c', 'd', '', true]] }) +
+      code("// khóa/đánh dấu nguyên tử: chỉ MỘT bên thắng\nconst ok = await redis.set('lock:order:42', '1', { NX: true, PX: 30000 });\nif (!ok) return;        // bên khác đang xử lý\n\n// cache có TTL\nawait redis.set('user:7', JSON.stringify(user), { EX: 60 });", 'js') +
+      note('warn', '<b>Cache stampede</b>: một key nóng hết hạn, hàng trăm request cùng đọc DB. Giảm bằng TTL ngẫu nhiên (jitter), hoặc chỉ cho một request nạp lại.')) +
+    lab('l4', 'Đo N+1 và index trên Postgres thật', 'Có số liệu để tin, không chỉ lý thuyết.',
+      code("docker run --name pg -e POSTGRES_PASSWORD=pw -p 5432:5432 -d postgres:16", 'bash') +
+      code("CREATE TABLE users(id serial PRIMARY KEY, name text);\nCREATE TABLE orders(id serial PRIMARY KEY, user_id int REFERENCES users(id), total int);\nINSERT INTO users(name) SELECT 'user' || g FROM generate_series(1, 100) g;\nINSERT INTO orders(user_id, total) SELECT (g % 100) + 1, g FROM generate_series(1, 100000) g;", 'sql') +
+      code("// npm i pg\nconst { Pool } = require('pg');\nconst pool = new Pool({ connectionString: 'postgres://postgres:pw@localhost:5432/postgres', max: 10 });\nlet queries = 0;\nconst q = (...a) => (queries++, pool.query(...a));\n(async () => {\n  console.time('n+1');\n  const { rows: orders } = await q('SELECT * FROM orders ORDER BY id LIMIT 100');\n  for (const o of orders) o.user = (await q('SELECT * FROM users WHERE id = $1', [o.user_id])).rows[0];\n  console.timeEnd('n+1'); console.log({ queries });\n  queries = 0;\n  console.time('join');\n  await q('SELECT o.*, u.name FROM orders o JOIN users u ON u.id = o.user_id ORDER BY o.id LIMIT 100');\n  console.timeEnd('join'); console.log({ queries });\n  await pool.end();\n})();", 'js', 'nplus1.js') +
+      expect('<code>queries: 101</code> cho N+1 và <code>queries: 1</code> cho JOIN; thời gian JOIN nhỏ hơn rõ rệt.') +
+      '<p>Phần index:</p>' + code("EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 5;   -- thấy Seq Scan\nCREATE INDEX ON orders(user_id);\nEXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 5;   -- thấy Index/Bitmap Scan", 'sql') +
+      expect('Plan đổi từ <b>Seq Scan</b> sang <b>Index Scan hoặc Bitmap Index Scan</b>, và "Execution Time" giảm.')) },
+
+  { id: 'test', label: 'Test', render: () => head('Test: đủ để tự tin đổi code', 'Dev 2 năm viết test có giá trị: ít nhưng đúng chỗ, nhanh, không flaky.') +
+    box('<h3>Kim tự tháp test</h3>' + dg({ w: 560, h: 196, nodes: [nd('a', 200, 8, 160, 50, 'E2E\nít, chậm, đắt', 'bad'), nd('b', 130, 68, 300, 52, 'Integration\nAPI + DB thật (container)', 'warn'), nd('c', 40, 130, 480, 52, 'Unit\nnhiều, nhanh, logic thuần', 'ok')] }) +
+      '<ul><li><b>Unit</b>: hàm thuần, use case với dependency được thay thế.</li><li><b>Integration</b>: gọi API thật, DB thật chạy bằng container. Giá trị cao nhất cho backend.</li><li><b>E2E</b>: vài luồng quan trọng nhất.</li></ul>') +
+    cards([
+      ['Mock hay fake?', '<p>Mock/stub <b>ranh giới ngoài</b>: HTTP bên thứ ba, email, queue. <b>Đừng mock DB</b> nếu chạy được container: mock che mất lỗi SQL, transaction, constraint.</p>'],
+      ['Dễ test nhờ thiết kế', '<p>Truyền dependency vào (như <code>sleep</code>, <code>clock</code>, <code>repo</code>) thay vì import cứng. Đây là lý do tách use case khỏi controller.</p>'],
+      ['Test không flaky', '<ul><li>Không dựa vào <code>setTimeout</code> thật: inject hàm sleep hoặc dùng fake timer.</li><li>Mỗi test tự dọn dữ liệu, không phụ thuộc thứ tự.</li><li>Cổng ngẫu nhiên (<code>listen(0)</code>).</li></ul>'],
+      ['Công cụ', T(['Việc', 'Công cụ'], [['Runner', '<code>node:test</code> (có sẵn), Vitest, Jest'], ['API', '<code>fetch</code> vào server thật, hoặc supertest'], ['DB thật', 'Testcontainers, docker compose'], ['Coverage', 'là chỉ báo, không phải mục tiêu']])],
+    ]) +
+    box('<h3>Test API không cần thư viện</h3>' + code("import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { app } from './app.js';\n\ntest('POST /orders thiếu body trả 422', async () => {\n  const server = app.listen(0);                  // cổng ngẫu nhiên\n  const { port } = server.address();\n  const res = await fetch('http://127.0.0.1:' + port + '/orders', {\n    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',\n  });\n  assert.equal(res.status, 422);\n  server.close();\n});", 'ts')) +
+    lab('l5', 'Test hàm retry mà không chờ thật', 'Viết code dễ test bằng cách inject dependency.',
+      code("// retry.js\nasync function retry(fn, { attempts = 3, baseMs = 100, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {\n  for (let i = 1; ; i++) {\n    try { return await fn(); }\n    catch (e) { if (i >= attempts) throw e; await sleep(baseMs * 2 ** (i - 1)); }\n  }\n}\nmodule.exports = { retry };", 'js', 'retry.js') +
+      code("// retry.test.js\nconst { test } = require('node:test');\nconst assert = require('node:assert/strict');\nconst { retry } = require('./retry');\n\ntest('thử lại với backoff mũ rồi thành công', async () => {\n  const delays = []; let calls = 0;\n  const sleep = async (ms) => { delays.push(ms); };   // không chờ thật\n  const r = await retry(async () => { if (++calls < 3) throw new Error('x'); return 'ok'; }, { sleep });\n  assert.equal(r, 'ok'); assert.equal(calls, 3);\n  assert.deepEqual(delays, [100, 200]);\n});\n\ntest('hết lượt thì ném lỗi', async () => {\n  let calls = 0;\n  await assert.rejects(retry(async () => { calls++; throw new Error('x'); }, { sleep: async () => {} }));\n  assert.equal(calls, 3);\n});", 'js', 'retry.test.js') +
+      code("node --test", 'bash') +
+      expect('2 test pass trong vài mili giây. Thử thêm: jitter, và chỉ retry khi lỗi thuộc loại tạm thời.')) },
+
+  { id: 'queue', label: 'Queue và phân tán', render: () => head('Queue và hệ phân tán', 'Phần dễ gây ấn tượng nhất khi phỏng vấn, và bạn đã có sẵn công cụ để thực hành: mini-novu.') +
+    box('<h3>Vòng đời một job</h3>' + dg({ w: 660, h: 240, nodes: [nd('w', 14, 78, 140, 52, 'Waiting\nchờ worker lấy', 'info'), nd('a', 250, 78, 140, 52, 'Active\nworker đang giữ', 'a'), nd('ok', 490, 14, 150, 48, 'Xong (ack)\nxóa khỏi queue', 'ok'), nd('d', 490, 130, 150, 52, 'DLQ\nhết lượt / lỗi không retry', 'bad'), nd('r', 250, 176, 140, 50, 'Chờ backoff\nsau đó quay lại', 'warn')],
+      edges: [['w', 'a', 'worker lấy'], ['a', 'ok', 'ack'], ['a', 'd', 'hết lượt'], ['a', 'r', 'lỗi / timeout'], ['r', 'w', 'hết backoff', true]] }) +
+      '<p style="margin:0">Backoff mũ: lần thử n chờ <code>cơ sở × 2<sup>n-1</sup></code> (thường thêm jitter ngẫu nhiên). Worker chết giữa chừng: hết <b>visibility timeout</b> thì job được giao lại.</p>') +
+    box('<h3>Ba lớp chống trùng, từ ngoài vào trong</h3>' + dg({ w: 780, h: 92, nodes: [nd('a', 6, 18, 168, 56, 'Idempotency-Key\ntầng HTTP', 'a'), nd('b', 198, 18, 168, 56, 'transactionId\ntầng nghiệp vụ', 'a'), nd('c', 390, 18, 168, 56, 'jobId\ntầng queue', 'a'), nd('d', 582, 18, 190, 56, 'Handler idempotent\nđánh dấu "đã làm"', 'ok')], edges: [['a', 'b'], ['b', 'c'], ['c', 'd']] }) +
+      '<p style="margin:0">Queue giao <b>at-least-once</b>, nên một job có thể chạy hơn một lần. Lớp cuối cùng (handler idempotent) là chốt an toàn: bước gửi email kiểm tra "đã gửi chưa" trước khi gửi.</p>') +
+    cards([
+      ['Outbox pattern', dg({ w: 560, h: 110, nodes: [nd('a', 6, 24, 150, 56, 'Ghi DB\nđơn + dòng outbox\n(1 transaction)', 'ok'), nd('b', 200, 24, 150, 56, 'Relay\nđọc outbox', 'm'), nd('c', 394, 24, 150, 56, 'Queue\nđẩy sự kiện', 'info')], edges: [['a', 'b'], ['b', 'c']] }) + '<p>Tránh tình huống ghi DB xong nhưng đẩy queue lỗi (mất sự kiện), hoặc ngược lại.</p>'],
+      ['Khi nào dùng queue', '<ul><li>Việc chậm hoặc không cần trả kết quả ngay (gửi email, xử lý ảnh).</li><li>Làm phẳng tải đột biến.</li><li>Tách lỗi của hệ thống ngoài khỏi request của người dùng.</li></ul>'],
+      ['Cạm bẫy', '<ul><li>Không idempotent: gửi trùng.</li><li>Message độc (poison): làm worker crash mãi. Cần DLQ và giới hạn lượt thử.</li><li>Giả định thứ tự: queue thường không đảm bảo.</li><li>Không cảnh báo DLQ: job hỏng nằm im.</li></ul>'],
+      ['Công cụ Node hay gặp', T(['', 'Ghi chú'], [['BullMQ (Redis)', 'job queue phổ biến cho Node'], ['AWS SQS', 'queue được quản lý, kết hợp Lambda'], ['Kafka', 'log sự kiện, thông lượng lớn'], ['RabbitMQ', 'routing linh hoạt']])],
+    ]) +
+    note('ok', '<b>Thực hành ngay:</b> mở trình mô phỏng tương tác (link ở cuối mục này), làm thí nghiệm "Một job bị giao 2 lần" để thấy at-least-once, ack bị từ chối và lý do cần idempotent.<br><a href="https://claude.ai/artifact/JbLiAs6SgzVKYfCrBkTFzK" target="_blank" rel="noopener">Mini Novu Simulator</a> (cần đăng nhập đúng tài khoản). Code chạy thật nằm trong thư mục <code>mini-novu</code> của repo của bạn.') +
+    lab('l6', 'Chạy và sửa mini-novu', 'Hiểu queue bằng cách phá nó và thêm tính năng.',
+      code("cd mini-novu\nnpm run dev      # dashboard: http://localhost:3002\nnpm test         # 10 test e2e", 'bash') +
+      '<ol><li>Chạy <code>MAX_ATTEMPTS=5 BACKOFF_MS=200 npm run dev</code>, bấm kịch bản "Lỗi mãi mãi" và đo thời gian giữa các lần thử.</li><li>Tắt riêng service <code>infra</code> khi đang chạy. API và worker phản ứng ra sao? <code>/health</code> trả gì?</li><li>Thêm kênh <code>sms</code> chạy song song <code>email</code> trong <code>run-job.usecase.ts</code> mà vẫn idempotent.</li><li>Chạy 2 worker (đổi <code>WORKER_PORT</code>) và quan sát cách chia job.</li><li>Tự vẽ lại sơ đồ 3 lớp chống trùng bằng lời của bạn, không nhìn tài liệu.</li></ol>' +
+      expect('Bạn trả lời được: "Vì sao API trả 202?", "Worker chết thì job đi đâu?", "Vì sao ack muộn bị từ chối?".')) },
+
+  { id: 'aws', label: 'AWS cho Node', render: () => head('AWS cho Node.js: serverless và IaC', 'Phần bạn còn là lab. Nắm luồng và vài con số quan trọng là đủ để nói chuyện đúng.') +
+    box('<h3>Luồng serverless điển hình</h3>' + dg({ w: 780, h: 290, nodes: [nd('c', 6, 74, 100, 48, 'Client', 'm'), nd('g', 136, 74, 120, 48, 'API Gateway', 'info'), nd('l', 290, 74, 120, 48, 'Lambda API\nvalidate, ghi', 'a'), nd('d', 560, 14, 150, 48, 'DynamoDB', 'ok'), nd('q', 470, 124, 130, 48, 'SQS queue', 'warn'), nd('w', 640, 124, 130, 48, 'Lambda worker\nxử lý job', 'a'), nd('x', 470, 222, 130, 48, 'DLQ', 'bad')],
+      edges: [['c', 'g'], ['g', 'l'], ['l', 'd'], ['l', 'q', 'gửi job'], ['q', 'w', 'trigger batch'], ['w', 'd'], ['q', 'x', 'quá maxReceiveCount']] }) +
+      '<p style="margin:0">Cùng tư duy với mini-novu: API nhận rồi đẩy job, worker xử lý ngoài request, job hỏng vào DLQ.</p>') +
+    cards([
+      ['Lambda cần nhớ', '<ul><li>Handler nhận <code>event</code>, trả kết quả. Mỗi lần gọi là một execution.</li><li><b>Cold start</b>: khởi tạo môi trường lần đầu. Giảm: bundle nhỏ (esbuild), khởi tạo client ngoài handler, tăng memory.</li><li>Memory cũng quyết định CPU.</li><li>Có timeout tối đa; việc dài hơn thì dùng Step Functions hoặc container.</li><li>Kết nối DB: dùng proxy/pool phù hợp, tránh mở quá nhiều kết nối.</li></ul>'],
+      ['SQS + Lambda', '<ul><li>Standard: at-least-once, thứ tự không đảm bảo. FIFO: thứ tự theo group, khử trùng.</li><li>Visibility timeout của queue nên <b>lớn hơn nhiều</b> timeout của function (tài liệu AWS khuyến nghị ít nhất 6 lần; hãy kiểm tra lại tài liệu hiện hành).</li><li>Bật <code>ReportBatchItemFailures</code> để chỉ thử lại message lỗi.</li><li>Có DLQ với <code>maxReceiveCount</code>.</li></ul>'],
+      ['DynamoDB cơ bản', '<ul><li>Truy vấn theo <b>partition key</b> (+ sort key). Thiết kế theo cách truy cập, không theo bảng quan hệ.</li><li><code>Query</code> nhanh, <code>Scan</code> đọc hết bảng nên tránh.</li><li>GSI cho cách truy cập khác.</li><li><b>Conditional write</b> là công cụ idempotency: ghi nếu chưa tồn tại.</li><li>TTL để tự xóa dữ liệu hết hạn.</li></ul>'],
+      ['Lambda hay container?', T(['', 'Lambda', 'ECS/EKS'], [['Tải', 'thất thường', 'ổn định, cao'], ['Thời gian', 'ngắn', 'chạy dài, websocket'], ['Vận hành', 'ít', 'nhiều hơn, kiểm soát hơn'], ['Chi phí', 'theo lượt gọi', 'theo tài nguyên chạy']])],
+    ]) +
+    box('<h3>Handler SQS có báo lỗi từng phần</h3>' + code("import type { SQSEvent, SQSBatchResponse } from 'aws-lambda';\n\nexport const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {\n  const failures: { itemIdentifier: string }[] = [];\n  for (const record of event.Records) {\n    try {\n      const body = JSON.parse(record.body);\n      if (body.poison) throw new Error('poison');\n      console.log(JSON.stringify({ msg: 'processed', id: record.messageId }));\n    } catch {\n      failures.push({ itemIdentifier: record.messageId });   // chỉ message này bị thử lại\n    }\n  }\n  return { batchItemFailures: failures };\n};", 'ts') +
+      '<h3 style="margin-top:12px">Hạ tầng bằng code (SAM)</h3>' + code("AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\nResources:\n  JobsDlq:\n    Type: AWS::SQS::Queue\n  JobsQueue:\n    Type: AWS::SQS::Queue\n    Properties:\n      VisibilityTimeout: 180          # = 6 x Timeout của function\n      RedrivePolicy:\n        deadLetterTargetArn: !GetAtt JobsDlq.Arn\n        maxReceiveCount: 3\n  Worker:\n    Type: AWS::Serverless::Function\n    Properties:\n      Runtime: nodejs22.x\n      Handler: index.handler\n      CodeUri: src/\n      Timeout: 30\n      Events:\n        Jobs:\n          Type: SQS\n          Properties:\n            Queue: !GetAtt JobsQueue.Arn\n            BatchSize: 5\n            FunctionResponseTypes: [ReportBatchItemFailures]\n    Metadata:\n      BuildMethod: esbuild\n      BuildProperties:\n        EntryPoints: [index.ts]", 'yaml', 'template.yaml') +
+      note('tip', 'Quyền IAM theo nguyên tắc tối thiểu: Lambda chỉ có quyền đọc đúng queue và ghi đúng bảng cần dùng. Dùng IaC (SAM, CDK) thay vì bấm tay trên console, để tái tạo và review được.')) +
+    lab('l7', 'Deploy Lambda + SQS + DLQ (tùy chọn, cần tài khoản AWS)', 'Chạy thật luồng queue trên AWS và thấy DLQ hoạt động.',
+      '<ol><li>Tạo thư mục <code>src/index.ts</code> với handler trên và <code>template.yaml</code> như trên.</li><li>Chạy thử cục bộ rồi triển khai (cần Docker cho chạy cục bộ):</li></ol>' +
+      code("sam build\nsam local invoke Worker -e event.json     # event.json: mẫu SQS event của bạn\nsam deploy --guided\n# gửi message thường và message độc\naws sqs send-message --queue-url <URL> --message-body '{\"hello\":1}'\naws sqs send-message --queue-url <URL> --message-body '{\"poison\":true}'\nsam logs -n Worker --tail\n# dọn dẹp để không tốn phí\nsam delete", 'bash') +
+      expect('Message thường được log "processed". Message độc bị thử lại tối đa <b>3 lần</b> rồi xuất hiện trong <b>DLQ</b> (xem số message trong DLQ trên console hoặc <code>aws sqs get-queue-attributes</code>). Cuối cùng chạy <code>sam delete</code>.') +
+      '<p style="color:var(--muted);font-size:13px">Không có AWS? Bỏ qua lab này, thay bằng Lab 6 (mini-novu) vì cùng cơ chế.</p>') },
+
+  { id: 'ops', label: 'Vận hành, bảo mật', render: () => head('Vận hành và bảo mật', 'Code chạy được chưa đủ. Phần này là sự khác biệt giữa "chạy trên máy tôi" và "chạy production".') +
+    cards([
+      ['Cấu hình', '<ul><li>Cấu hình qua biến môi trường (12-factor), <b>kiểm tra lúc khởi động</b>, thiếu thì dừng ngay.</li><li>Secret nằm ở secret manager, không nằm trong repo.</li></ul>'],
+      ['Log và truy vết', '<ul><li>Log JSON có cấu trúc (pino).</li><li>Gắn <code>requestId</code> vào mọi dòng, truyền xuyên service. <code>AsyncLocalStorage</code> giữ nó mà không phải truyền tay.</li><li>Đừng log secret hay dữ liệu cá nhân.</li></ul>'],
+      ['Health check', T(['', 'Hỏi gì', 'Fail thì'], [['Liveness', 'process còn sống?', 'khởi động lại'], ['Readiness', 'sẵn sàng nhận traffic? (DB ok)', 'ngừng chuyển traffic']])],
+      ['Chỉ số cần theo dõi', '<p>Mô hình <b>RED</b>: Rate (số request), Errors (tỉ lệ lỗi), Duration (độ trễ p95/p99). Thêm: độ trễ event loop, bộ nhớ, độ sâu queue, số message trong DLQ.</p>'],
+    ]) +
+    box('<h3>Pipeline CI/CD điển hình</h3>' + dg({ w: 800, h: 80, nodes: [nd('a', 6, 14, 100, 50, 'Commit\nPR', 'm'), nd('b', 120, 14, 108, 50, 'Lint +\ntypecheck', 'a'), nd('c', 242, 14, 100, 50, 'Test', 'a'), nd('d', 356, 14, 100, 50, 'Build\nimage', 'a'), nd('e', 470, 14, 100, 50, 'Push\nregistry', 'a'), nd('f', 584, 14, 100, 50, 'Deploy', 'ok'), nd('g', 698, 14, 96, 50, 'Smoke\nhealth', 'ok')], edges: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e'], ['e', 'f'], ['f', 'g']] })) +
+    box('<h3>Dockerfile tốt cho Node</h3>' + code("FROM node:22-alpine AS build\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci\nCOPY . .\nRUN npm run build\n\nFROM node:22-alpine\nWORKDIR /app\nENV NODE_ENV=production\nCOPY package*.json ./\nRUN npm ci --omit=dev\nCOPY --from=build /app/dist ./dist\nUSER node\nEXPOSE 3000\nCMD [\"node\", \"dist/main.js\"]", 'dockerfile', 'Dockerfile') +
+      '<ul><li><b>Multi-stage</b>: image cuối nhỏ, không chứa công cụ build.</li><li><b>Chạy user <code>node</code></b>, không chạy root.</li><li><b>Không dùng <code>npm start</code> làm PID 1</b>: tín hiệu tắt có thể không tới app. Gọi <code>node</code> trực tiếp.</li><li><code>npm ci</code> dùng đúng lockfile, cho bản build lặp lại được.</li></ul>') +
+    box('<h3>Đọc hiểu manifest Kubernetes (đủ để vào dự án EKS)</h3>' + code("apiVersion: apps/v1\nkind: Deployment\nmetadata: { name: api }\nspec:\n  replicas: 3                       # 3 bản chạy song song\n  selector: { matchLabels: { app: api } }\n  template:\n    metadata: { labels: { app: api } }\n    spec:\n      containers:\n        - name: api\n          image: registry/api:1.4.2\n          ports: [{ containerPort: 3000 }]\n          resources:\n            requests: { cpu: 100m, memory: 128Mi }\n            limits: { memory: 256Mi }\n          readinessProbe: { httpGet: { path: /health/ready, port: 3000 } }\n          livenessProbe: { httpGet: { path: /health/live, port: 3000 } }", 'yaml') +
+      T(['Khái niệm', 'Ý nghĩa'], [['Pod', 'đơn vị chạy nhỏ nhất, chứa container'], ['Deployment', 'giữ đủ số bản, cập nhật cuốn chiếu'], ['Service', 'địa chỉ ổn định phía trước các pod'], ['Ingress', 'cổng HTTP từ ngoài vào'], ['Probe', 'liveness và readiness như ở trên']])) +
+    box('<h3>Bảo mật: danh sách kiểm tra</h3>' + T(['Rủi ro', 'Cách phòng'], [['Injection (SQL, NoSQL, lệnh)', 'query tham số hóa, validate input, không nối chuỗi'], ['Xác thực yếu', 'băm mật khẩu (argon2/bcrypt), token ngắn hạn, giới hạn đăng nhập sai'], ['Phân quyền sai', 'kiểm tra quyền ở server cho MỌI tài nguyên, không tin id từ client'], ['Lộ thông tin', 'không trả stack, không log secret, bật <code>helmet</code>'], ['Thư viện lỗ hổng', '<code>npm audit</code>, khóa phiên bản, cập nhật định kỳ'], ['Lạm dụng', 'rate limit, giới hạn kích thước body, timeout'], ['SSRF', 'không gọi URL do người dùng cung cấp mà không lọc']])) +
+    lab('l8', 'Docker và tắt êm', 'Kiểm chứng app nhận SIGTERM và thoát đúng cách trong container.',
+      '<p>Lấy API từ Lab 3, thêm đoạn tắt êm ở mục 2, dùng Dockerfile trên (nhớ có script <code>build</code>), rồi:</p>' + code("docker build -t api .\ndocker run --name t -p 3000:3000 api\n# terminal 2\ndocker stop t\ndocker inspect -f '{{.State.ExitCode}}' t", 'bash') +
+      expect('Log in ra "shutdown SIGTERM", <code>docker stop</code> xong gần như ngay (không phải đợi 10 giây) và exit code là <b>0</b>. Nếu exit code là <b>137</b>, app không nhận được tín hiệu (thường do dùng <code>npm start</code> làm PID 1).')) },
+
+  { id: 'interview', label: 'Flashcard phỏng vấn', render: () => head('Flashcard phỏng vấn (' + FC.length + ' câu)', 'Đọc câu hỏi, tự trả lời thành tiếng, rồi mới xem đáp án. Bấm "Đã nhớ" khi bạn giải thích được mà không nhìn.') +
+    note('say', '<p><b>Khi chưa biết:</b> "Phần đó tôi chưa làm production. Theo cách tôi hiểu thì ..., và tôi sẽ kiểm chứng bằng ...". <b>Khi được hỏi dự án:</b> Tình huống → việc của bạn → cách làm → kết quả đo được. Chỉ nêu số liệu mà bạn thật sự có.</p>') +
+    '<div class="chips" id="fcf"></div><div id="fclist" style="display:grid;gap:10px"></div>' },
+
+  { id: 'progress', label: 'Tiến độ', render: () => head('Tiến độ và lộ trình', 'Mọi lab và flashcard bạn đã tick được lưu trong trình duyệt này.') + '<div id="prog"></div>' },
+];
+
+/* ============ Dựng giao diện ============ */
+const fcState = { g: 'Tất cả' };
+function countProgress() {
+  const labs = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8'], labDone = labs.filter((l) => store.get('lab:' + l) === '1').length;
+  const fcDone = FC.filter((_, i) => store.get(fcKey(i)) === '1').length;
+  return { labs, labDone, fcDone, total: labs.length + FC.length, done: labDone + fcDone };
+}
+function paintProgress() { const p = countProgress(); $('#pbar').style.width = Math.round((p.done / p.total) * 100) + '%'; $('#ptxt').textContent = 'Đã nhớ ' + p.fcDone + '/' + FC.length + ' · Lab ' + p.labDone + '/' + p.labs.length; }
+function renderFlash() {
+  const groups = ['Tất cả', ...new Set(FC.map((c) => c[0]))];
+  $('#fcf').innerHTML = groups.map((g) => '<button data-fg="' + g + '" class="' + (fcState.g === g ? 'on' : '') + '">' + g + '</button>').join('');
+  $('#fclist').innerHTML = FC.map((c, i) => [c, i]).filter(([c]) => fcState.g === 'Tất cả' || c[0] === fcState.g).map(([c, i]) => '<div class="fc ' + (store.get(fcKey(i)) === '1' ? 'known' : '') + '"><span class="gtag">' + c[0] + '</span><div class="q">' + c[1] + '</div><div class="a" hidden>' + c[2] + '</div><div class="row"><button data-ans="1">Xem đáp án</button><label><input type="checkbox" data-fc="' + i + '"' + (store.get(fcKey(i)) === '1' ? ' checked' : '') + '> Đã nhớ</label></div></div>').join('');
+}
+function renderProgress() {
+  const p = countProgress(), pct = Math.round((p.done / p.total) * 100);
+  const names = {}; LABS.forEach((l) => (names[l.id] = l.title));
+  $('#prog').innerHTML = '<div class="box"><h3>Tổng quan: ' + pct + '%</h3><p>Flashcard đã nhớ: <b>' + p.fcDone + '/' + FC.length + '</b>. Lab đã làm: <b>' + p.labDone + '/' + p.labs.length + '</b>.</p><div class="bar" style="width:100%"><i style="width:' + pct + '%"></i></div></div>' +
+    '<div class="box"><h3>Lab</h3>' + T(['Lab', 'Nội dung', 'Mục', 'Xong'], [['l1', 'js'], ['l2', 'node'], ['l3', 'api'], ['l4', 'data'], ['l5', 'test'], ['l6', 'queue'], ['l7', 'aws'], ['l8', 'ops']].map(([id, s]) => [id.toUpperCase(), { l1: 'pLimit: giới hạn song song', l2: 'Chặn event loop và stream', l3: 'API orders', l4: 'N+1 và index trên Postgres', l5: 'Test retry không chờ thật', l6: 'Chạy và sửa mini-novu', l7: 'Lambda + SQS + DLQ (tùy chọn)', l8: 'Docker và tắt êm' }[id], '<a href="#' + s + '">mở mục</a>', store.get('lab:' + id) === '1' ? '<span style="color:var(--ok)">Đã xong</span>' : '—'])) + '</div>' +
+    '<div class="grid"><div class="box"><h3>Lộ trình 1 tuần</h3>' + T(['Ngày', 'Làm gì'], [['1', 'Mục 1, Lab 1'], ['2', 'Mục 2 (mô phỏng event loop), Lab 2'], ['3', 'Mục 3, Lab 3'], ['4', 'Mục 4, Lab 4'], ['5', 'Mục 5, Lab 5'], ['6', 'Mục 6, Lab 6, mục 7 (đọc)'], ['7', 'Mục 8, flashcard toàn bộ, tự nói thành tiếng']]) + '</div>' +
+    '<div class="box"><h3>Còn 1 giờ?</h3><ol><li>Mục 2: chơi mô phỏng 5 ví dụ (20 phút).</li><li>Flashcard nhóm JS và Node (25 phút).</li><li>Mục 6: đọc 3 lớp chống trùng và vòng đời job (15 phút).</li></ol><p><button id="resetprog">Xóa toàn bộ tiến độ</button></p></div></div>';
+  const r = $('#resetprog'); if (r) r.onclick = () => { if (r.dataset.sure) { LABS.forEach((l) => store.set('lab:' + l.id, '0')); ['l1','l2','l3','l4','l5','l6','l7','l8'].forEach((l) => store.set('lab:' + l, '0')); FC.forEach((_, i) => store.set(fcKey(i), '0')); paintProgress(); renderProgress(); } else { r.dataset.sure = '1'; r.textContent = 'Bấm lần nữa để xác nhận xóa'; } };
+}
+
+let current = 'start';
+function show(id) {
+  if (!SECTIONS.find((s) => s.id === id)) id = 'start';
+  current = id;
+  if (SIM.timer) { clearInterval(SIM.timer); SIM.timer = null; }
+  const idx = SECTIONS.findIndex((s) => s.id === id), s = SECTIONS[idx];
+  $('#main').innerHTML = s.render() + '<div class="pn">' + (idx > 0 ? '<button data-go="' + SECTIONS[idx - 1].id + '">← ' + SECTIONS[idx - 1].label + '</button>' : '<span></span>') + (idx < SECTIONS.length - 1 ? '<button class="on" data-go="' + SECTIONS[idx + 1].id + '">' + SECTIONS[idx + 1].label + ' →</button>' : '') + '</div>';
+  $('#nav').innerHTML = SECTIONS.map((x, i) => '<a href="#' + x.id + '" class="' + (x.id === id ? 'on' : '') + '"><i>' + i + '</i>' + x.label + '</a>').join('');
+  if (id === 'node') { SIM.p = 0; SIM.i = 0; SIM.pick = null; renderSim(); }
+  if (id === 'interview') renderFlash();
+  if (id === 'progress') renderProgress();
+  paintProgress(); window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button, input'); if (!t) return;
+  if (t.dataset.go) { location.hash = t.dataset.go; return; }
+  if (t.dataset.sp !== undefined) { SIM.p = +t.dataset.sp; SIM.i = 0; SIM.pick = null; if (SIM.timer) { clearInterval(SIM.timer); SIM.timer = null; } renderSim(); return; }
+  if (t.dataset.pick !== undefined) { SIM.pick = +t.dataset.pick; renderSim(); return; }
+  if (t.dataset.sa) { simAction(t.dataset.sa); return; }
+  if (t.dataset.fg) { fcState.g = t.dataset.fg; renderFlash(); return; }
+  if (t.dataset.ans) { const a = t.closest('.fc').querySelector('.a'); a.hidden = !a.hidden; t.textContent = a.hidden ? 'Xem đáp án' : 'Ẩn đáp án'; return; }
+  if (t.dataset.copy !== undefined) { const txt = t.parentElement.querySelector('code').textContent; const done = () => { t.textContent = 'Đã chép'; setTimeout(() => (t.textContent = 'Sao chép'), 1200); };
+    (navigator.clipboard ? navigator.clipboard.writeText(txt).then(done) : Promise.reject()).catch(() => { const r = document.createRange(); r.selectNodeContents(t.parentElement.querySelector('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); t.textContent = 'Đã chọn, nhấn Ctrl+C'; }); return; }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.dataset.lab) { store.set('lab:' + t.dataset.lab, t.checked ? '1' : '0'); paintProgress(); }
+  if (t.dataset.fc !== undefined) { store.set(fcKey(t.dataset.fc), t.checked ? '1' : '0'); t.closest('.fc').classList.toggle('known', t.checked); paintProgress(); }
+});
+// Đăng ký đầy đủ danh sách lab để tiến độ đúng ngay từ đầu
+show(location.hash.slice(1) || 'start');
+</script>
+</body></html>
