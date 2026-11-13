@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Novu – luồng microservice</title>
+<style>
+  :root { --bg:#0f1420; --panel:#171e2e; --line:#2b3550; --text:#e6ebf5; --muted:#8f9bb8;
+          --ok:#3ddc97; --warn:#ffb454; --bad:#ff6b6b; --info:#6ea8ff; --accent:#b48cff; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f6fb; --panel:#fff; --line:#cfd6e6; --text:#1b2438; --muted:#59657f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
+  header { padding:14px 16px; border-bottom:1px solid var(--line); }
+  h1 { font-size:17px; margin:0 0 2px; } .sub { color:var(--muted); font-size:13px; }
+  main { display:grid; gap:12px; padding:12px 16px 24px; grid-template-columns: 1fr; max-width:1200px; margin:0 auto; }
+  @media (min-width: 980px) { main { grid-template-columns: 1.5fr 1fr; } .wide { grid-column: 1 / -1; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; min-width:0; }
+  h2 { font-size:13px; margin:0 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  svg { width:100%; height:auto; display:block; }
+  .node rect { fill:var(--panel); stroke:var(--line); stroke-width:1.5; rx:8; transition:stroke .2s, fill .2s; }
+  .node.flash rect { stroke:var(--info); fill:color-mix(in srgb, var(--info) 18%, var(--panel)); }
+  .node text { fill:var(--text); font-size:14px; font-weight:600; text-anchor:middle; }
+  .node .sm { fill:var(--muted); font-size:11px; font-weight:400; }
+  .edge { stroke:var(--line); stroke-width:1.5; fill:none; stroke-dasharray:4 4; }
+  .node .count { fill:var(--accent); font-size:12px; font-weight:700; }
+  .btns { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:8px; }
+  button { background:transparent; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 10px; text-align:left; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--info); } button b { display:block; } button span { color:var(--muted); font-size:12px; }
+  #log { height:320px; overflow:auto; font:12px/1.5 ui-monospace,monospace; }
+  .ev { padding:2px 0; border-bottom:1px dashed var(--line); white-space:pre-wrap; word-break:break-word; }
+  .ev .svc { display:inline-block; min-width:52px; font-weight:600; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); } .info { color:var(--info); }
+  table { width:100%; border-collapse:collapse; font-size:12px; } th,td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; }
+  .pill { padding:1px 8px; border-radius:99px; font-size:11px; border:1px solid currentColor; }
+  #hint { margin-top:10px; padding:8px 10px; border-left:3px solid var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent); color:var(--text); }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin-top:6px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mini Novu – xem luồng microservice chạy thật</h1>
+  <div class="sub">Bấm một kịch bản, rồi nhìn chấm tròn chạy trên sơ đồ, log bên phải và bảng thông báo bên dưới. Subscriber nhận tin realtime: <b id="subName">alice</b> <span id="conn" class="pill warn">đang kết nối</span></div>
+</header>
+<main>
+  <section>
+    <h2>Sơ đồ luồng (trực tiếp)</h2>
+    <svg id="map" viewBox="0 0 920 400" role="img" aria-label="Sơ đồ luồng từ client qua api, queue, worker, ws tới trình duyệt"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--info)"></i>đang chạy bình thường</span>
+      <span><i class="dot" style="background:var(--ok)"></i>thành công / ack</span>
+      <span><i class="dot" style="background:var(--warn)"></i>retry / chờ / trùng lặp</span>
+      <span><i class="dot" style="background:var(--bad)"></i>lỗi / bị từ chối / DLQ</span>
+    </div>
+    <div id="hint">Chọn một kịch bản bên dưới để bắt đầu.</div>
+  </section>
+  <section>
+    <h2>Nhật ký sự kiện (mới nhất ở dưới)</h2>
+    <div id="log" aria-live="polite"></div>
+  </section>
+  <section class="wide">
+    <h2>Kịch bản</h2>
+    <div class="btns" id="btns"></div>
+  </section>
+  <section class="wide">
+    <h2>Bảng thông báo (lưu trong DB)</h2>
+    <table><thead><tr><th>id</th><th>kịch bản</th><th>trạng thái</th><th>lần thử</th><th>lỗi</th></tr></thead><tbody id="rows"></tbody></table>
+  </section>
+</main>
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const nodes = {
+  client:  { x:62,  y:190, w:104, h:52, label:'Client', sm:'curl / trình duyệt' },
+  api:     { x:215, y:190, w:130, h:52, label:'API :3000', sm:'auth · limit · idem' },
+  qStd:    { x:395, y:80,  w:150, h:56, label:'Queue standard', sm:'chờ worker lấy', q:'standard', k:'waiting' },
+  dlq:     { x:395, y:190, w:150, h:56, label:'DLQ (dead)', sm:'job hỏng, để người xem', q:'standard', k:'dead' },
+  db:      { x:395, y:310, w:130, h:48, label:'DB + KV', sm:'notifications, khóa' },
+  worker:  { x:580, y:80,  w:120, h:52, label:'Worker', sm:'retry · backoff' },
+  qWs:     { x:580, y:310, w:160, h:56, label:'Queue web-sockets', sm:'tin realtime', q:'web-sockets', k:'waiting' },
+  ws:      { x:740, y:190, w:100, h:48, label:'WS :3002', sm:'đẩy xuống client' },
+  browser: { x:858, y:80,  w:112, h:52, label:'Trình duyệt', sm:'SSE ~ socket.io' },
+};
+const edges = [['client','api'],['api','qStd'],['api','db'],['qStd','worker'],['worker','qStd'],['qStd','dlq'],['worker','db'],['worker','qWs'],['qWs','ws'],['ws','browser']];
+const map = document.getElementById('map');
+const center = n => [nodes[n].x, nodes[n].y];
+for (const [a,b] of edges) { const [x1,y1]=center(a),[x2,y2]=center(b); const l=document.createElementNS(NS,'line'); l.setAttribute('class','edge'); l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2); map.appendChild(l); }
+const nodeEls = {};
+for (const [id,n] of Object.entries(nodes)) {
+  const g = document.createElementNS(NS,'g'); g.setAttribute('class','node');
+  g.innerHTML = `<rect x="${n.x-n.w/2}" y="${n.y-n.h/2}" width="${n.w}" height="${n.h}"/><text x="${n.x}" y="${n.y-3}">${n.label}</text><text class="sm" x="${n.x}" y="${n.y+12}">${n.sm}</text>` + (n.q ? `<text class="count" x="${n.x}" y="${n.y-n.h/2-5}" id="cnt-${id}"></text>`:'');
+  map.appendChild(g); nodeEls[id]=g;
+}
+function flash(id){ const g=nodeEls[id]; if(!g) return; g.classList.add('flash'); setTimeout(()=>g.classList.remove('flash'),500); }
+function packet(a,b,color){
+  const [x1,y1]=center(a),[x2,y2]=center(b);
+  const c=document.createElementNS(NS,'circle'); c.setAttribute('r',6); c.setAttribute('fill',color); c.setAttribute('cx',x1); c.setAttribute('cy',y1);
+  map.appendChild(c); const t0=performance.now(), dur=650;
+  (function step(t){ const p=Math.min(1,(t-t0)/dur); c.setAttribute('cx',x1+(x2-x1)*p); c.setAttribute('cy',y1+(y2-y1)*p); if(p<1) requestAnimationFrame(step); else { c.remove(); flash(b); } })(t0);
+}
+const C = { info:'var(--info)', ok:'var(--ok)', warn:'var(--warn)', bad:'var(--bad)' };
+// type -> [từ, đến, màu, nhãn tiếng Việt]
+const T = {
+  'api.request':           ['client','api','info','API nhận request'],
+  'api.rejected':          ['api','client','bad', e=>`API từ chối ${e.status}: ${e.reason}`],
+  'api.idempotent_replay': ['api','client','warn','Idempotency-Key trùng: trả lại kết quả cũ, KHÔNG chạy lại'],
+  'api.ignored_duplicate': ['api','client','warn','transactionId trùng: bỏ qua'],
+  'api.enqueued':          ['api','qStd','info','API đẩy job vào queue rồi trả 202 ngay'],
+  'queue.deduped':         ['api','qStd','warn','Queue từ chối job trùng jobId'],
+  'queue.pulled':          ['qStd','worker','info', e=>`Worker nhận job (lần ${e.attempt})`],
+  'worker.processing':     ['worker','db','info','Worker cập nhật trạng thái = processing'],
+  'worker.sent':           ['worker','db','ok', e=>`Gửi qua provider (${e.channel})`],
+  'worker.enqueued_ws':    ['worker','qWs','info','Worker đẩy tin vào queue web-sockets'],
+  'worker.ack':            ['worker','qStd','ok','Worker ack: job xong, xóa khỏi queue'],
+  'worker.failed':         ['worker','qStd','bad', e=>`Job lỗi: ${e.error} → ${e.outcome}`],
+  'queue.retry_scheduled': ['qStd','worker','warn', e=>`Queue hẹn thử lại sau ${e.delayMs}ms (backoff mũ)`],
+  'queue.dead':            ['qStd','dlq','bad', e=>`Vào DLQ (${e.reason})`],
+  'queue.visibility_timeout':['qStd','worker','warn','Hết visibility timeout: worker không phản hồi, giao lại'],
+  'worker.crashed':        ['worker','worker','bad','WORKER CHẾT giữa chừng (chưa ack)'],
+  'ws.pushed':             ['ws','browser','ok','WS đẩy realtime tới trình duyệt'],
+  'ws.offline':            ['ws','browser','warn','Subscriber offline: không đẩy được'],
+  'queue.acked':           null, 'ws.pulled': null,
+};
+const sev = c => ({info:'info',ok:'ok',warn:'warn',bad:'bad'}[c]);
+const logEl = document.getElementById('log');
+function addLog(ev){
+  const def = T[ev.type]; if (def === null) return;
+  const label = def ? (typeof def[3]==='function'?def[3](ev):def[3]) : ev.type;
+  const d=document.createElement('div'); d.className='ev';
+  const id = ev.jobId||ev.requestId||ev.notificationId||''; 
+  d.innerHTML=`<span class="svc ${sev(def?def[2]:'info')}">${ev.service}</span>${label} <span style="color:var(--muted)">${String(id).slice(0,13)}</span>`;
+  logEl.appendChild(d); if(logEl.children.length>150) logEl.firstChild.remove(); logEl.scrollTop=logEl.scrollHeight;
+  if(def && def[0]!==def[1]) packet(def[0],def[1],C[def[2]]); else if(def) flash(def[0]);
+}
+const es=new EventSource('/trace'); es.addEventListener('trace',e=>addLog(JSON.parse(e.data)));
+// Giữ cả trình duyệt này như một subscriber thật để nhận realtime
+const sub='alice'; const pill=document.getElementById('conn');
+const my=new EventSource('/stream?subscriber='+sub);
+my.onopen=()=>{pill.textContent='đã kết nối';pill.className='pill ok';};
+my.onerror=()=>{pill.textContent='mất kết nối';pill.className='pill bad';};
+my.addEventListener('notification',e=>{ const m=JSON.parse(e.data); const d=document.createElement('div'); d.className='ev ok'; d.innerHTML='<span class="svc">browser</span>📩 Nhận realtime: '+m.message; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; });
+
+async function poll(){
+  try{
+    const s=await (await fetch('/stats')).json();
+    for(const [id,n] of Object.entries(nodes)){ if(!n.q) continue; const q=s.queues[n.q]||{}; const el=document.getElementById('cnt-'+id);
+      el.textContent = n.k==='dead' ? `dead: ${q.dead||0}` : `chờ ${q.waiting||0} · hẹn ${q.delayed||0} · chạy ${q.active||0}`; }
+    const rows=await (await fetch('/demo/notifications')).json();
+    document.getElementById('rows').innerHTML=rows.slice(0,8).map(r=>`<tr><td>${r.id.slice(0,8)}</td><td>${r.simulate}</td><td><span class="pill ${r.status==='sent'?'ok':r.status==='failed'?'bad':'warn'}">${r.status}</span></td><td>${r.attempts||0}</td><td>${r.error||''}</td></tr>`).join('');
+  }catch{}
+}
+setInterval(poll,700); poll();
+
+const uid=()=>Math.random().toString(36).slice(2,8);
+async function trigger(body, idem){
+  const r=await fetch('/demo/trigger',{method:'POST',headers:{'content-type':'application/json',...(idem?{'idempotency-key':idem}:{})},body:JSON.stringify(body)});
+  return r.json();
+}
+const base=(simulate,extra={})=>({workflowId:'welcome',to:{subscriberId:sub},simulate,payload:{demo:true},...extra});
+const scenarios=[
+  ['1. Luồng bình thường','api nhận → queue → worker gửi → ws đẩy realtime', 'Nhìn chấm xanh dương đi từ Client → API → Queue → Worker → ... → Trình duyệt. API trả 202 NGAY, worker làm sau.', ()=>trigger(base('ok'))],
+  ['2. Lỗi tạm thời (retry)','provider 503 hai lần, lần 3 thành công','Chấm vàng: queue hẹn thử lại với thời gian chờ tăng gấp đôi (backoff mũ). Bảng: lần thử = 3, trạng thái = sent.', ()=>trigger(base('flaky'))],
+  ['3. Lỗi không thể retry','số điện thoại sai → thẳng vào DLQ','Không retry vì vô ích. Chấm đỏ vào ô DLQ, bộ đếm dead tăng, trạng thái = failed.', ()=>trigger(base('fatal'))],
+  ['4. Lỗi mãi mãi','retry hết lượt rồi vào DLQ','Thử đủ 3 lần với chờ 0.8s rồi 1.6s, sau đó vào DLQ.', ()=>trigger(base('always-fail'))],
+  ['5. Worker chết giữa chừng','kill worker khi đang xử lý','Worker "chết" (không ack). Sau ~4s visibility timeout, queue giao lại; worker mới (dev.ts tự bật lại) xử lý xong. Job KHÔNG bị mất.', ()=>trigger(base('crash'))],
+  ['6. Gửi 2 lần cùng Idempotency-Key','lần 2 trả kết quả cũ','Lần 2 không tạo job mới: chấm vàng chỉ chạy API → Client. Đây là lớp chống trùng #1 (HTTP).', async()=>{const k='demo-'+uid(); const b=base('ok'); await trigger(b,k); return trigger(b,k);}],
+  ['7. Gửi 2 lần cùng transactionId','lần 2 bị bỏ qua','Lớp chống trùng #2 (nghiệp vụ). Khác Idempotency-Key ở chỗ nó do ứng dụng đặt và có hiệu lực theo nghiệp vụ.', async()=>{const t='tx-'+uid(); await trigger(base('ok',{transactionId:t})); return trigger(base('ok',{transactionId:t}));}],
+  ['8. Bắn 15 request liên tiếp','chạm rate limit → 429','Khoảng 8 request đầu qua, phần còn lại bị từ chối 429 ngay ở API (chấm đỏ), worker không bị quá tải.', async()=>{for(let i=0;i<15;i++) trigger(base('ok'));}],
+];
+const hint=document.getElementById('hint');
+const btns=document.getElementById('btns');
+for(const [t,d,h,fn] of scenarios){ const b=document.createElement('button'); b.innerHTML=`<b>${t}</b><span>${d}</span>`; b.onclick=async()=>{hint.textContent=h; await fn();}; btns.appendChild(b); }
+</script>
+</body>
+</html>
