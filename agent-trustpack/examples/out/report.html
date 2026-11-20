@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent Trust Report — Acme Corp</title>
+<style>
+:root{--bg:#fff;--fg:#1a1d23;--mut:#6b7280;--card:#f6f7f9;--line:#e3e5ea;--hi:#b42318;--md:#b54708;--lo:#067647;--ac:#2f5fd0}
+@media (prefers-color-scheme:dark){:root{--bg:#12141a;--fg:#e8eaee;--mut:#9aa1ad;--card:#1b1e26;--line:#2a2e38;--hi:#f97066;--md:#fdb022;--lo:#47cd89;--ac:#7aa2ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}h1{margin:0 0 4px;font-size:26px}h2{margin:36px 0 10px;font-size:19px}
+.muted{color:var(--mut);font-size:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+.score{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.big{font-size:44px;font-weight:700}
+.low{color:var(--lo)}.moderate{color:var(--md)}.high{color:var(--hi)}
+code{font:12.5px ui-monospace,monospace;background:var(--card);padding:1px 5px;border-radius:4px;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.wrap{overflow-x:auto}.sev{font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;border:1px solid currentColor}
+.sev.high{color:var(--hi)}.sev.medium{color:var(--md)}.tag{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line)}
+.tag.gap{color:var(--md)}.tag.decl{color:var(--ac)}
+</style></head><body><main>
+<h1>AI Agent Trust Report</h1>
+<div class="muted">Prepared for Acme Corp · by Your Agency · generated 2026-11-20T02:53:11.107Z</div>
+
+<div class="card score"><div class="big moderate">39<span class="muted">/100</span></div>
+<div><b class="moderate">MODERATE RISK</b><br>
+<span class="muted">8 tool calls · 1 session(s) · 3 high / 2 medium findings · 1 tool errors</span></div></div>
+
+<h2>1. Which model, and where does it run?</h2><div class="card">
+    <p><b>Observed model(s):</b> <code>claude-sonnet-5-5</code> (8 turns)</p>
+    <p><b>Where the model runs:</b> <span class="tag decl">declared</span> Anthropic API, US region</p>
+    <p><b>Training / fine-tuning on client data:</b> <span class="tag decl">declared</span> No — API terms prohibit training on inputs</p></div>
+<h2>2. Did client data leave the environment?</h2><div class="card">
+    <p><b>Observed outbound destinations:</b> <code>api.acme-internal.example</code> ×1</p>
+    <p><b>MCP servers used:</b> <code>mcp__github</code></p>
+    <p><b>Files read:</b> 2 distinct · <b>files modified:</b> 1</p>
+    <p><b>Data retention / residency:</b> <span class="tag decl">declared</span> 30 days; zero-retention agreement requested</p>
+    <p class="muted">Observed = derived from the session log. It cannot see traffic made inside code the agent ran, so treat this as a floor, not a ceiling.</p></div>
+<h2>3. What could the agent do?</h2><div class="card">
+    <p><b>Permission mode(s):</b> <code>acceptEdits</code></p>
+    <p><b>Tools used:</b> <code>Bash</code> ×3, <code>Read</code> ×2, <code>Edit</code> ×1, <code>WebFetch</code> ×1, <code>mcp__github__create_pull_request</code> ×1</p>
+    <p><b>Credential / key files touched:</b> 1 · <b>secrets seen in logs:</b> 1</p>
+    <p><b>Risky actions:</b> 3 high · 2 medium</p></div>
+<h2>4. Who is accountable, and can you prove what happened?</h2><div class="card">
+    <p><b>Accountable owner:</b> <span class="tag decl">declared</span> Jane Doe &lt;jane@agency.example&gt;</p>
+    <p><b>Sessions covered:</b> 1 · <b>window:</b> 2026-11-19T09:00:00Z → 2026-11-19T09:07:00Z</p>
+    <p><b>Evidence integrity:</b> SHA-256 hash chain over 8 events. Head: <code>27b6690db12824a2…</code>
+    <span class="muted">Run <code>agent-trustpack verify report.json</code>. Detects edits to the log; to resist a malicious editor, store the head hash somewhere you don't control (e.g. email it to the client).</span></p></div>
+
+<h2>Findings</h2><div class="wrap"><table><thead><tr><th>Severity</th><th>Rule</th><th>Why it matters</th><th>Evidence</th><th>Event</th></tr></thead><tbody><tr><td><span class="sev high">high</span></td><td><code>sensitive-path</code></td><td>Touches a credential or key file</td><td><code>/work/acme-portal/.env</code></td><td>#4</td></tr><tr><td><span class="sev high">high</span></td><td><code>secret-in-output</code></td><td>Secret (stripe-key) surfaced in tool output (now in model context)</td><td><code>/work/acme-portal/.env</code></td><td>#4</td></tr><tr><td><span class="sev high">high</span></td><td><code>force-push</code></td><td>Force push can overwrite shared history</td><td><code>git push --force origin main</code></td><td>#5</td></tr><tr><td><span class="sev medium">medium</span></td><td><code>pkg-install</code></td><td>Adds third-party code (supply-chain surface)</td><td><code>npm install lodash axios</code></td><td>#1</td></tr><tr><td><span class="sev medium">medium</span></td><td><code>git-push</code></td><td>Sends code to a remote</td><td><code>git push --force origin main</code></td><td>#5</td></tr></tbody></table></div>
+<h2>Files modified</h2><div class="wrap"><table><thead><tr><th>Path</th><th>Edits</th></tr></thead><tbody><tr><td><code>/work/acme-portal/src/api.ts</code></td><td>1</td></tr></tbody></table></div>
+<h2>Timeline</h2><div class="wrap"><table><thead><tr><th>#</th><th>Time (UTC)</th><th>Tool</th><th>Action</th><th>Flags</th><th></th></tr></thead><tbody><tr><td>#0</td><td>2026-11-19 09:00:00</td><td><code>Read</code></td><td><code>/work/acme-portal/src/app.ts</code></td><td></td><td></td></tr><tr><td>#1</td><td>2026-11-19 09:01:00</td><td><code>Bash</code></td><td><code>npm install lodash axios</code></td><td><span class="sev medium">pkg-install</span></td><td></td></tr><tr><td>#2</td><td>2026-11-19 09:02:00</td><td><code>Edit</code></td><td><code>/work/acme-portal/src/api.ts</code></td><td></td><td></td></tr><tr><td>#3</td><td>2026-11-19 09:03:00</td><td><code>WebFetch</code></td><td><code>https://api.acme-internal.example/v1/users</code></td><td></td><td></td></tr><tr><td>#4</td><td>2026-11-19 09:04:00</td><td><code>Read</code></td><td><code>/work/acme-portal/.env</code></td><td><span class="sev high">sensitive-path</span> <span class="sev high">secret-in-output</span></td><td></td></tr><tr><td>#5</td><td>2026-11-19 09:05:00</td><td><code>Bash</code></td><td><code>git push --force origin main</code></td><td><span class="sev high">force-push</span> <span class="sev medium">git-push</span></td><td></td></tr><tr><td>#6</td><td>2026-11-19 09:06:00</td><td><code>Bash</code></td><td><code>npm test</code></td><td></td><td><span class="sev medium">error</span></td></tr><tr><td>#7</td><td>2026-11-19 09:07:00</td><td><code>mcp__github__create_pull_request</code></td><td><code>mcp__github__create_pull_request</code></td><td></td><td></td></tr></tbody></table></div>
+
+<p class="muted" style="margin-top:32px">Generated by agent-trustpack. Items tagged <span class="tag gap">gap</span> need a human answer; items tagged <span class="tag decl">declared</span> come from your config and are not verified by this tool. Secrets are redacted in this report.</p>
+</main></body></html>

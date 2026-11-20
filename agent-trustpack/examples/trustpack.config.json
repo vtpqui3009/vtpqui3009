@@ -1,0 +1,3 @@
+{ "client": "Acme Corp", "vendor": "Your Agency", "owner": "Jane Doe <jane@agency.example>",
+  "modelHosting": "Anthropic API, US region", "trainingOnClientData": "No — API terms prohibit training on inputs",
+  "dataRetention": "30 days; zero-retention agreement requested" }

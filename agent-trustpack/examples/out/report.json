@@ -1,0 +1,230 @@
+{
+  "meta": {
+    "client": "Acme Corp",
+    "files": 1,
+    "generatedAt": "2026-11-20T02:53:11.107Z",
+    "tool": "agent-trustpack@0.1.0"
+  },
+  "window": {
+    "first": "2026-11-19T09:00:00Z",
+    "last": "2026-11-19T09:07:00Z"
+  },
+  "sessions": [
+    "demo"
+  ],
+  "models": {
+    "claude-sonnet-5-5": 8
+  },
+  "permissionModes": [
+    "acceptEdits"
+  ],
+  "cwds": [
+    "/work/acme-portal"
+  ],
+  "branches": [],
+  "toolCounts": {
+    "Bash": 3,
+    "Read": 2,
+    "Edit": 1,
+    "WebFetch": 1,
+    "mcp__github__create_pull_request": 1
+  },
+  "mcpServers": [
+    "mcp__github"
+  ],
+  "hosts": {
+    "api.acme-internal.example": 1
+  },
+  "filesWritten": {
+    "/work/acme-portal/src/api.ts": 1
+  },
+  "filesReadCount": 2,
+  "sensitive": [
+    {
+      "i": 4,
+      "tool": "Read",
+      "path": "/work/acme-portal/.env"
+    }
+  ],
+  "secretHits": [
+    {
+      "i": 4,
+      "tool": "Read",
+      "type": "stripe-key",
+      "where": "output"
+    }
+  ],
+  "errors": 1,
+  "findings": [
+    {
+      "id": "pkg-install",
+      "sev": "medium",
+      "why": "Adds third-party code (supply-chain surface)",
+      "i": 1,
+      "tool": "Bash",
+      "summary": "npm install lodash axios",
+      "ts": "2026-11-19T09:01:00Z"
+    },
+    {
+      "id": "sensitive-path",
+      "sev": "high",
+      "why": "Touches a credential or key file",
+      "i": 4,
+      "tool": "Read",
+      "summary": "/work/acme-portal/.env",
+      "ts": "2026-11-19T09:04:00Z"
+    },
+    {
+      "id": "secret-in-output",
+      "sev": "high",
+      "why": "Secret (stripe-key) surfaced in tool output (now in model context)",
+      "i": 4,
+      "tool": "Read",
+      "summary": "/work/acme-portal/.env",
+      "ts": "2026-11-19T09:04:00Z"
+    },
+    {
+      "id": "force-push",
+      "sev": "high",
+      "why": "Force push can overwrite shared history",
+      "i": 5,
+      "tool": "Bash",
+      "summary": "git push --force origin main",
+      "ts": "2026-11-19T09:05:00Z"
+    },
+    {
+      "id": "git-push",
+      "sev": "medium",
+      "why": "Sends code to a remote",
+      "i": 5,
+      "tool": "Bash",
+      "summary": "git push --force origin main",
+      "ts": "2026-11-19T09:05:00Z"
+    }
+  ],
+  "risk": {
+    "score": 39,
+    "level": "moderate",
+    "high": 3,
+    "medium": 2
+  },
+  "chainHead": "27b6690db12824a2d7dc7ab5cc12d0484fa7d1ce8654e03aef431efb494f5e34",
+  "events": [
+    {
+      "i": 0,
+      "ts": "2026-11-19T09:00:00Z",
+      "tool": "Read",
+      "kind": "read",
+      "summary": "/work/acme-portal/src/app.ts",
+      "sidechain": false,
+      "flags": [],
+      "error": false,
+      "hash": "a3ef2fc5fbe0ee03512784f6a8a837b137557ab03924c7eb690ca1336772d1f7"
+    },
+    {
+      "i": 1,
+      "ts": "2026-11-19T09:01:00Z",
+      "tool": "Bash",
+      "kind": "shell",
+      "summary": "npm install lodash axios",
+      "sidechain": false,
+      "flags": [
+        {
+          "id": "pkg-install",
+          "sev": "medium",
+          "why": "Adds third-party code (supply-chain surface)"
+        }
+      ],
+      "error": false,
+      "hash": "f4ed2c5950e655195df0619fb9cbcf272c6332de99dbed586c08deb03eb59548"
+    },
+    {
+      "i": 2,
+      "ts": "2026-11-19T09:02:00Z",
+      "tool": "Edit",
+      "kind": "write",
+      "summary": "/work/acme-portal/src/api.ts",
+      "sidechain": false,
+      "flags": [],
+      "error": false,
+      "hash": "00fec24173827790a0c66e394ce15f1b08206d39ec5155aee63ba1fee7d681bf"
+    },
+    {
+      "i": 3,
+      "ts": "2026-11-19T09:03:00Z",
+      "tool": "WebFetch",
+      "kind": "network",
+      "summary": "https://api.acme-internal.example/v1/users",
+      "sidechain": false,
+      "flags": [],
+      "error": false,
+      "hash": "d8dfd5029c9d2905002d440e1a1fa87d7fbc2a9fb8b70272b98f1f92eec3cfcb"
+    },
+    {
+      "i": 4,
+      "ts": "2026-11-19T09:04:00Z",
+      "tool": "Read",
+      "kind": "read",
+      "summary": "/work/acme-portal/.env",
+      "sidechain": false,
+      "flags": [
+        {
+          "id": "sensitive-path",
+          "sev": "high",
+          "why": "Touches a credential or key file"
+        },
+        {
+          "id": "secret-in-output",
+          "sev": "high",
+          "why": "Secret (stripe-key) surfaced in tool output (now in model context)"
+        }
+      ],
+      "error": false,
+      "hash": "03b7a60efb9cb10a23cd6be9ce19f77255c12ea2b76bb0c937b9bd3bf2040e74"
+    },
+    {
+      "i": 5,
+      "ts": "2026-11-19T09:05:00Z",
+      "tool": "Bash",
+      "kind": "shell",
+      "summary": "git push --force origin main",
+      "sidechain": false,
+      "flags": [
+        {
+          "id": "force-push",
+          "sev": "high",
+          "why": "Force push can overwrite shared history"
+        },
+        {
+          "id": "git-push",
+          "sev": "medium",
+          "why": "Sends code to a remote"
+        }
+      ],
+      "error": false,
+      "hash": "137b23bd25d5f0daea30b59041b050b9cc53bc9ac84983abbc84a7249f7f6b08"
+    },
+    {
+      "i": 6,
+      "ts": "2026-11-19T09:06:00Z",
+      "tool": "Bash",
+      "kind": "shell",
+      "summary": "npm test",
+      "sidechain": false,
+      "flags": [],
+      "error": true,
+      "hash": "63790f77a9e5889a112dbc3359aa65423a0e08bd29d1e6e9dd982d53d306fe0a"
+    },
+    {
+      "i": 7,
+      "ts": "2026-11-19T09:07:00Z",
+      "tool": "mcp__github__create_pull_request",
+      "kind": "mcp",
+      "summary": "mcp__github__create_pull_request",
+      "sidechain": false,
+      "flags": [],
+      "error": false,
+      "hash": "27b6690db12824a2d7dc7ab5cc12d0484fa7d1ce8654e03aef431efb494f5e34"
+    }
+  ]
+}
